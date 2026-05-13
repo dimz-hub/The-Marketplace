@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    /* Basic Options */
+    "target": "ES2022",
+    "module": "Node16",           // Modern CommonJS support
+    "moduleResolution": "Node16", // Fixes the deprecation error
+    "lib": ["ES2022"],
+    "types": ["node"],
+
+    /* Interop System */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    /* File Layout */
+    "rootDir": "./",
+    "outDir": "./dist",
+
+    /* Other Outputs */
+    "sourceMap": true,
+    "declaration": true,
+
+    /* Stricter Typechecking Options */
+    "strict": true,
+    "noImplicitAny": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
