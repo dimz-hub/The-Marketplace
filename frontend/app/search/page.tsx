@@ -5,18 +5,34 @@ import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { Settings2, X, ChevronDown, Check, SlidersHorizontal, Loader2 } from 'lucide-react';
 import BusinessCard from '../components/BusinessCard';
+import Navbar from '../components/Navbar';
+
+// 1. Define the structure of the business item as it arrives from the backend
+interface RawBusiness {
+  id: string;
+  _id: string;
+  name: string;
+  images?: string[];
+  rating?: number;
+  reviewCount?: number;
+  priceLevel?: string | number;
+  category: string;
+  closeTime: string;
+  location: string;
+  description?: string;
+}
 
 const SearchResults: React.FC = () => {
   const searchParams = useSearchParams();
   const findDesc = searchParams.get('find_desc') || '';
   const locationParam = searchParams.get('location') || 'Lagos';
 
-  // --- STATE ---
-  const [businesses, setBusinesses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSortOpen, setIsSortOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('Recommended');
+  // --- STATE WITH STRICT TYPES ---
+  const [businesses, setBusinesses] = useState<RawBusiness[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [isSortOpen, setIsSortOpen] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<string>('Recommended');
   
   const sortRef = useRef<HTMLDivElement>(null);
 
@@ -27,8 +43,8 @@ const SearchResults: React.FC = () => {
       
       setLoading(true);
       try {
-        // Calling the singular /search route as defined in your backend
-        const response = await axios.get(`http://localhost:4000/business/search`, {
+        // Enforce type-safety directly on the Axios network response payload envelope
+        const response = await axios.get<{ data: RawBusiness[] }>(`http://localhost:4000/business/search`, {
           params: { 
             find_desc: findDesc 
           }
@@ -60,10 +76,25 @@ const SearchResults: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const priceOptions = ['$', '$$', '$$$', '$$$$'];
-  const suggestedFilters = ['Open Now', 'Accepts Credit Cards', 'Dogs Allowed'];
+  // 🚀 Put it here so it only triggers on the client browser space safely
+  useEffect(() => {
+    console.log(localStorage.getItem('token'));
+  }, []);
+
+  const priceOptions: string[] = ['$', '$$', '$$$', '$$$$'];
+  const suggestedFilters: string[] = ['Open Now', 'Accepts Credit Cards', 'Dogs Allowed'];
+
+  // HELPER: Safely evaluate price strings like "$$" down to numerical levels without using 'any'
+  const getPriceLevel = (price: string | number | undefined): number => {
+    if (typeof price === 'number') return price;
+    return price ? price.length : 2;
+  };
 
   return (
+    <>
+      <div className="relative z-20 w-[90%] mx-auto max-w-[1440px] mt-2">
+         <Navbar color={true}/>
+      </div>
     <main className="min-w-full bg-gray-50 min-h-screen relative font-sans">
       
       {/* --- SIDEBAR OVERLAY --- */}
@@ -169,7 +200,6 @@ const SearchResults: React.FC = () => {
           <div className="flex flex-col gap-6">
             {businesses.length > 0 ? (
               businesses.map((biz) => {
-                // INTEGRATED: Construct image URL from the array
                 const businessImage = biz.images && biz.images.length > 0 
                   ? `http://localhost:4000/${biz.images[0].replace(/\\/g, '/')}` 
                   : 'https://via.placeholder.com/400x300?text=No+Image';
@@ -178,11 +208,13 @@ const SearchResults: React.FC = () => {
                   <BusinessCard 
                     key={biz._id} 
                     business={{
+                      id: biz.id, 
+                      _id: biz._id,
                       name: biz.name,
-                      image: businessImage, // Pass the first image URL
+                      image: businessImage,
                       rating: biz.rating || 0,
                       reviewCount: biz.reviewCount || 0,
-                      priceLevel: biz.priceLevel || '$$',
+                      priceLevel: getPriceLevel(biz.priceLevel),
                       tags: [biz.category],
                       closingTime: biz.closeTime,
                       location: biz.location,
@@ -203,6 +235,7 @@ const SearchResults: React.FC = () => {
         )}
       </div>
     </main>
+    </>
   );
 };
 

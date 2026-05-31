@@ -1,38 +1,16 @@
 # Ignore dependencies
-    backend/node_modules/
-    frontend/node_modules/
+backend/node_modules/
+frontend/node_modules/
 
-    # Ignore environment variables
-    backend/.env
-    frontend/.env.local
+# Ignore environment variables
+.env
+*.env
+frontend/.env.local
 
-    # Ignore build folders
-    frontend/.next/
-    frontend/dist/
-    
-    # Ignore OS files
-    .DS_Store
-    ```
-3.  **Commit your code:**
-    
-```bash
-    git add .
-    git commit -m "Initial commit: backend and frontend"
-    ```
+# Ignore build folders
+frontend/.next/
+frontend/dist/
 
----
-
-## 2. Why use the Parent Folder?
-*   **Atomic Commits:** When you build a feature that requires both a new API endpoint (backend) and a new UI component (frontend), you can commit them together. This ensures your project history always has "matching" versions of the frontend and backend.
-*   **Simplicity:** You only need to manage one GitHub repository and one set of Pull Requests.
-*   **Easier Deployment:** Many modern hosting platforms (like Vercel or Render) allow you to point to a single repository and specify which subfolder to deploy.
-
----
-
-## 3. Alternative: Separate Repositories
-You would only initialize Git *inside* each subfolder separately if:
-1.  The frontend and backend are completely unrelated projects.
-2.  Different teams are working on them and you want strictly separate permissions.
-3.  You plan to reuse the backend for multiple different apps (like a mobile app and a web app) in the future.
-
-**Verdict:** For your React/Next.js and Node.js setup, sticking to the **parent folder** is much easier to manage.
+# Ignore OS files
+.DS_Store
+Thumbs.db

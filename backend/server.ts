@@ -4,6 +4,9 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dns from 'dns';
 import businessRoutes from './routes/business';
+import authRoutes from './routes/authRoute';
+import passport from './config/passport';
+
 
 // FORCED NETWORK FIX: Bypasses local ISP DNS blocks
 dns.setServers(['8.8.8.8', '8.8.4.4']); 
@@ -14,15 +17,24 @@ const app = express();
 // app.use(cors());
 app.use(cors({
   origin: 'http://localhost:3000', // Your frontend URL
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 app.use(express.json());
+
+app.use(passport.initialize());
+
+
 
 // Routes
 app.use('/business', businessRoutes);
 // This allows http://localhost:4000/uploads/xyz.jpg to work
 app.use('/uploads', express.static('uploads'));
+
+
+
+app.use('/auth', authRoutes);
 
 // Basic Test Route
 app.get('/', (req: Request, res: Response) => {

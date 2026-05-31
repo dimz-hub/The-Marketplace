@@ -1,7 +1,9 @@
-"use client"
-import React, { useState, ChangeEvent } from 'react';
+"use client";
+
+import React, { useState, ChangeEvent, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { ImagePlus, X } from 'lucide-react'; // Import icons for better UI
+import { ImagePlus, X } from 'lucide-react'; 
 import FieldsetGroup from './Fieldset';
 
 interface FormData {
@@ -13,42 +15,112 @@ interface FormData {
   openTime: string;
   closeTime: string;
   description: string;
+  websiteLink: string; // 🚀 Added new link tracking property
 }
 
-const BusinessRegistration: React.FC = () => {
+interface BackendErrorResponse {
+  message?: string;
+  error?: string;
+}
+
+interface RegistrationResponse {
+  success?: boolean;
+  message?: string;
+  data?: {
+    _id?: string;
+    id?: string;
+  };
+}
+
+interface BusinessRegistrationProps {
+  editId?: string | null;
+}
+
+const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) => {
+  const router = useRouter();
+  
   const [formData, setFormData] = useState<FormData>({
     name: '', email: '', phoneNumber: '', category: '',
-    location: '', openTime: '', closeTime: '', description: ''
+    location: '', openTime: '', closeTime: '', description: '',
+    websiteLink: '' // 🚀 Initialized state string
   });
 
-  // --- NEW STATE FOR IMAGES ---
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [deletedImages, setDeletedImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const categories = ['Restaurants', 'Fashion', 'Dry Food', 'Logistics', 'Home Services'];
+  const categories: string[] = ['Restaurants', 'Fashion', 'Dry Food', 'Logistics', 'Home Services'];
+
+  // Fetch existing data if we are in edit mode
+  useEffect(() => {
+    const fetchExistingBusiness = async () => {
+      if (!editId) return;
+      try {
+        setLoading(true);
+        const response = await axios.get(`http://localhost:4000/business/${editId}`);
+        if (response.data.success && response.data.data) {
+          const b = response.data.data;
+          setFormData({
+            name: b.name || '',
+            email: b.email || '',
+            phoneNumber: b.phoneNumber || '',
+            category: b.category || '',
+            location: b.location || '',
+            openTime: b.openTime || '',
+            closeTime: b.closeTime || '',
+            description: b.description || '',
+            websiteLink: b.websiteLink || '' // 🚀 Populates link string when editing
+          });
+          
+          setDeletedImages([]);
+
+          if (b.images && b.images.length > 0) {
+            setPreviews(b.images.map((img: string) => `http://localhost:4000/${img}`));
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching business for editing:", error);
+        setStatusMsg({ type: 'error', text: 'Failed to populate business details for updating.' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExistingBusiness();
+  }, [editId]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- HANDLE IMAGE SELECTION ---
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...filesArray]);
-
-      // Create local URLs for previewing images
       const newPreviews = filesArray.map(file => URL.createObjectURL(file));
       setPreviews((prev) => [...prev, ...newPreviews]);
     }
   };
 
   const removeImage = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => prev.filter((_, i) => i !== index));
+    const imageToRemove = previews[index];
+
+    if (imageToRemove.startsWith('http://localhost:4000/')) {
+      const rawPath = imageToRemove.replace('http://localhost:4000/', '');
+      setDeletedImages((prev) => [...prev, rawPath]);
+    } else {
+      const newFilePreviews = previews.filter(p => !p.startsWith('http://localhost:4000/'));
+      const localFileIndex = newFilePreviews.indexOf(imageToRemove);
+      
+      if (localFileIndex !== -1) {
+        setSelectedFiles((prev) => prev.filter((_, i) => i !== localFileIndex));
+      }
+    }
+
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -56,35 +128,74 @@ const BusinessRegistration: React.FC = () => {
     setLoading(true);
     setStatusMsg(null);
 
-    // --- USE FORMDATA FOR FILE UPLOAD ---
-    const data = new FormData();
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setStatusMsg({ type: 'error', text: 'Your authorization session expired. Please log in again.' });
+      setLoading(false);
+      return;
+    }
+
+    const data = new window.FormData();
     
-    // Append text fields
     Object.entries(formData).forEach(([key, value]) => {
       data.append(key, value);
     });
 
-    // Append images (the key 'images' must match upload.array('images') in backend)
     selectedFiles.forEach((file) => {
       data.append('images', file);
     });
 
+    if (editId) {
+      data.append('deletedImages', JSON.stringify(deletedImages));
+    }
+
     try {
-      const response = await axios.post('http://localhost:4000/business/register', data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const url = editId 
+        ? `http://localhost:4000/business/update/${editId}` 
+        : 'http://localhost:4000/business/register';
+
+      const method = editId ? 'patch' : 'post';
+
+      const response = await axios({
+        method: method,
+        url: url,
+        data: data,
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}` 
+        }
       });
 
-      if (response.status === 201) {
-        setStatusMsg({ type: 'success', text: 'Business registered successfully!' });
-        setFormData({
-          name: '', email: '', phoneNumber: '', category: '',
-          location: '', openTime: '', closeTime: '', description: ''
-        });
-        setSelectedFiles([]);
-        setPreviews([]);
+      if (response.status === 201 || response.status === 200) {
+        const businessId = editId || response.data?.data?._id || response.data?.data?.id;
+
+        if (businessId) {
+          setFormData({
+            name: '', email: '', phoneNumber: '', category: '',
+            location: '', openTime: '', closeTime: '', description: '',
+            websiteLink: '' // 🚀 Reset on complete form clear routines
+          });
+          setSelectedFiles([]);
+          setPreviews([]);
+          setDeletedImages([]);
+
+          router.push(`/business/${businessId}`);
+        } else {
+          setStatusMsg({ 
+            type: 'success', 
+            text: 'Business updated successfully, but no tracking ID was found to redirect.' 
+          });
+        }
       }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.response?.data?.error || 'Something went wrong';
+    } catch (error: unknown) {
+      let errorMessage = 'Something went wrong';
+      
+      if (axios.isAxiosError<BackendErrorResponse>(error)) {
+        errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       setStatusMsg({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
@@ -103,10 +214,6 @@ const BusinessRegistration: React.FC = () => {
       )}
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* --- IMAGE UPLOAD SECTION --- */}
-      
-
-        {/* --- EXISTING FIELDS --- */}
         <FieldsetGroup label="Your business name">
           <input
             type="text" name="name" className="w-full outline-none px-1 text-lg bg-transparent"
@@ -141,6 +248,19 @@ const BusinessRegistration: React.FC = () => {
             value={formData.location} onChange={handleChange} required />
         </FieldsetGroup>
 
+        {/* 🚀 NEW OPTIONAL LINK FIELD */}
+        <FieldsetGroup label="Website Link (Optional)">
+          <input 
+            type="url" 
+            name="websiteLink" 
+            placeholder="https://example.com"
+            className="w-full outline-none bg-transparent"
+            value={formData.websiteLink} 
+            onChange={handleChange} 
+            required={false} 
+          />
+        </FieldsetGroup>
+
         <div className="grid grid-cols-2 gap-4">
           <FieldsetGroup label="Open Time">
             <input type="time" name="openTime" className="w-full outline-none bg-transparent"
@@ -157,7 +277,8 @@ const BusinessRegistration: React.FC = () => {
           <textarea name="description" rows={3} className="w-full outline-none bg-transparent resize-none"
             value={formData.description} onChange={handleChange} ></textarea>
         </FieldsetGroup>
-          <div className="mb-6">
+        
+        <div className="mb-6">
           <label className="block text-sm font-bold text-gray-700 mb-2">Business Images</label>
           <div className="grid grid-cols-3 gap-4 mb-4">
             {previews.map((url, index) => (
@@ -166,14 +287,13 @@ const BusinessRegistration: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity animate-in fade-in duration-200"
                 >
                   <X size={14} />
                 </button>
               </div>
             ))}
             
-            {/* Upload Trigger */}
             <label className="flex flex-col items-center justify-center aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-[#007185] hover:bg-gray-50 cursor-pointer transition-colors">
               <ImagePlus className="text-gray-400 mb-1" size={24} />
               <span className="text-[10px] text-gray-500 font-medium">Add Photo</span>
@@ -193,7 +313,7 @@ const BusinessRegistration: React.FC = () => {
           className={`w-full text-white font-bold py-4 rounded-lg transition-all shadow-md mt-4 active:scale-[0.98]
             ${loading ? 'bg-slate-400 cursor-not-allowed' : 'bg-[#007185] hover:bg-[#005f70]'}`}
         >
-          {loading ? 'Processing...' : 'Register Business'}
+          {loading ? 'Processing...' : editId ? 'Update Business Details' : 'Register Business'}
         </button>
       </form>
     </div>

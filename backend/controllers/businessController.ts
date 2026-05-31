@@ -1,7 +1,24 @@
 import { Request, Response } from 'express';
-import Business, {IBusiness} from '../models/BusinessSchema';
+import Business from '../models/BusinessSchema';
 
-// Define the shape of the incoming query parameters
+// --- TS INTERFACES ---
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    name?: string; // 🚀 Updated to include optional name payload passed from token middleware
+  };
+}
+
+interface MongoQueryOperators {
+  $regex?: string;
+  $options?: string;
+  $gte?: number | string;
+  $lte?: number | string;
+  $in?: RegExp[];
+}
+
 interface BusinessSearchParams {
   find_desc?: string;
   tag?: string;
@@ -10,109 +27,113 @@ interface BusinessSearchParams {
   open_now?: string;
 }
 
-// export const searchBusinesses = async (req: Request, res: Response): Promise<void> => {
-//   try {
-//     // 1. Get parameters with explicit typing
-//     const { find_desc, tag, location, rating, open_now } = req.query as BusinessSearchParams;
+interface AddBusinessBody {
+  name: string;
+  category: 'Restaurants' | 'Fashion' | 'Dry Food' | 'Logistics' | 'Home Services';
+  location: string;
+  email: string;
+  phoneNumber: string;
+  openTime: string;
+  closeTime: string;
+  description?: string;
+  websiteLink?: string;
+  [key: string]: any; // Allow indexing string keys for the allowedFields loop
+}
 
-//     // 2. Initialize a query object
-//     // Using 'any' here allows us to build the MongoDB query dynamically
-//     let query: any = {};
+// --- CONTROLLERS ---
 
-//     // Filter by Category
-//    // Filter by Category OR Name (Common Search Logic)
-// if (find_desc) {
-//   query.$or = [
-//     { category: { $regex: find_desc, $options: 'i' } },
-//     { name: { $regex: find_desc, $options: 'i' } }
-//   ];
-// }
-
-//     // Filter by Location
-//     if (location) {
-//       query.location = { $regex: new RegExp(location, 'i') };
-//     }
-
-//     // Filter by Minimum Rating
-//     if (rating) {
-//       query.rating = { $gte: Number(rating) };
-//     }
-
-//     // Filter by Tags
-//     if (tag) {
-//       query.tags = { $in: [new RegExp(tag, 'i')] };
-//     }
-
-//     // Filter by "Open Now"
-//     if (open_now === 'true') {
-//       const currentTime = new Date().toLocaleTimeString('en-GB', { 
-//         hour: '2-digit', 
-//         minute: '2-digit' 
-//       }); 
-
-//       query.openTime = { $lte: currentTime };
-//       query.closeTime = { $gte: currentTime };
-//     }
-
-//     // 3. Execute the search
-//     const results = await Business.find(query).sort({ rating: -1 });
-
-//     res.status(200).json({
-//       success: true,
-//       count: results.length,
-//       filtersApplied: query,
-//       data: results
-//     });
-
-//   } catch (error: unknown) {
-//     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-//     res.status(500).json({ success: false, error: errorMessage });
-//   }
-// };
-
-export const searchBusinesses = async (req: Request, res: Response): Promise<void> => {
+// Real-Time Auto-complete Suggestions Controller
+export const getSearchSuggestions = async (
+  req: Request, 
+  res: Response
+): Promise<void | Response> => {
   try {
-    // We only extract find_desc now
-    const { find_desc } = req.query as BusinessSearchParams;
+    const { query } = req.query;
 
-    let query: any = {};
-
-    // Filter strictly by Category (Case-insensitive)
-    if (find_desc) {
-      query.category = { $regex: find_desc, $options: 'i' };
+    if (!query || String(query).trim().length < 2) {
+      return res.status(200).json({ success: true, data: [] });
     }
 
-    // Log this to your terminal to verify what Mongo is looking for
-    console.log("Search Query:", query);
+    const searchRegex = new RegExp(String(query).trim(), 'i');
 
-    const results = await Business.find(query).sort({ rating: -1 });
+    const suggestions = await Business.find({
+      $or: [
+        { name: { $regex: searchRegex } },
+        { category: { $regex: searchRegex } }
+      ]
+    })
+    .select('name category location')
+    .limit(5);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      count: results.length,
-      data: results
+      data: suggestions
     });
-
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: 'Internal Server Error' });
+    console.error('Error fetching suggestions:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return res.status(500).json({ success: false, error: errorMessage });
   }
 };
 
-
-
-
-
-
-export const addBusiness = async (req: Request, res: Response): Promise<void> => {
+// Search Businesses Controller
+export const searchBusinesses = async (
+  req: Request, 
+  res: Response
+): Promise<void | Response> => {
   try {
-    // 1. Extract files from Multer
-    // Since we used upload.array('images'), files are in req.files
-    const files = req.files as Express.Multer.File[];
-    
-    // 2. Map file objects to get their storage paths
-    const imagePaths = files ? files.map(file => file.path) : [];
+    const { find_desc, tag, location, rating, open_now } = req.query as unknown as BusinessSearchParams;
+    const query: Record<string, string | number | RegExp | boolean | MongoQueryOperators | Array<Record<string, MongoQueryOperators>> | undefined> = {};
 
-    // 3. Extract text fields from req.body
+    if (find_desc) {
+      query.$or = [
+        { category: { $regex: find_desc, $options: 'i' } },
+        { name: { $regex: find_desc, $options: 'i' } }
+      ];
+    }
+    if (location) {
+      query.location = { $regex: location, $options: 'i' };
+    }
+    if (rating) {
+      query.rating = { $gte: Number(rating) };
+    }
+    if (tag) {
+      query.tags = { $in: [new RegExp(tag, 'i')] };
+    }
+    if (open_now === 'true') {
+      const currentTime = new Date().toLocaleTimeString('en-GB', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }); 
+      query.openTime = { $lte: currentTime };
+      query.closeTime = { $gte: currentTime };
+    }
+
+    const results = await Business.find(query).sort({ rating: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: results.length,
+      filtersApplied: query,
+      data: results
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return res.status(500).json({ success: false, error: errorMessage });
+  }
+};
+
+// Create / Register Business Controller
+export const addBusiness = async (
+  req: Request, 
+  res: Response
+): Promise<void | Response> => {
+  try {
+    const authReq = req as AuthenticatedRequest; 
+
+    const files = authReq.files as Express.Multer.File[];
+    const imagePaths = files ? files.map((file) => file.path) : [];
+
     const {
       name,
       category,
@@ -121,20 +142,26 @@ export const addBusiness = async (req: Request, res: Response): Promise<void> =>
       phoneNumber,
       openTime,
       closeTime,
-      description
-    } = req.body;
+      description,
+      websiteLink
+    } = authReq.body as AddBusinessBody;
 
-    // 4. Basic Validation (Including image check if you want images to be required)
+    if (!authReq.user || !authReq.user.id) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized session context missing.' 
+      });
+    }
+
     if (!name || !category || !location || !email || !phoneNumber || !openTime || !closeTime) {
-      res.status(400).json({ 
+      return res.status(400).json({ 
         success: false, 
         message: 'Please provide all required text fields.' 
       });
-      return;
     }
 
-    // 5. Create the business instance including the images array
     const newBusiness = new Business({
+      userId: authReq.user.id, 
       name,
       category,
       location,
@@ -143,13 +170,13 @@ export const addBusiness = async (req: Request, res: Response): Promise<void> =>
       openTime,
       closeTime,
       description,
-      images: imagePaths // Added the array of strings here
+      websiteLink: websiteLink || "", 
+      images: imagePaths
     });
 
-    // 6. Save to MongoDB
     const savedBusiness = await newBusiness.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       data: savedBusiness,
       message: 'Business registered successfully with images!'
@@ -157,16 +184,161 @@ export const addBusiness = async (req: Request, res: Response): Promise<void> =>
 
   } catch (error: unknown) {
     console.error('Error adding business:', error);
-
-    // 7. Error Handling
     if (error instanceof Error) {
       if (error.name === 'ValidationError') {
-        res.status(400).json({ success: false, error: error.message });
-        return;
+        return res.status(400).json({ success: false, error: error.message });
       }
-      res.status(500).json({ success: false, error: error.message });
-    } else {
-      res.status(500).json({ success: false, error: 'An unexpected server error occurred.' });
+      return res.status(500).json({ success: false, error: error.message });
+    } 
+    return res.status(500).json({ success: false, error: 'An unexpected server error occurred.' });
+  }
+};
+
+// Get Business By ID Controller
+export const getBusinessById = async (
+  req: Request, 
+  res: Response
+): Promise<void | Response> => {
+  try {
+    const business = await Business.findById(req.params.id);
+    if (!business) {
+       return res.status(404).json({ success: false, message: "Not found" });
     }
+    return res.status(200).json({ success: true, data: business });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Server error';
+    return res.status(500).json({ success: false, error: errorMessage });
+  }
+};
+
+// Update Business Controller (🚀 Integrated Loop Modification Strategy)
+export const updateBusiness = async (
+  req: Request,
+  res: Response
+): Promise<void | Response> => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { id } = req.params;
+    const updateFields = { ...authReq.body };
+
+    // 1. Authorization Guard Checks
+    if (!authReq.user || !authReq.user.id) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Unauthorized session context missing.' 
+      });
+    }
+
+    // 2. Document Extraction & Integrity Fallbacks
+    let business = await Business.findById(id); 
+    if (!business) {
+      return res.status(404).json({ success: false, message: 'Business workspace not found.' });
+    }
+
+    // 3. User Ownership Permission Verification Guard
+    if (business.userId !== authReq.user.id) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Forbidden: You do not have permission to modify this business.' 
+      });
+    }
+
+    // 4. Process Fresh Uploaded Images Sequence
+    const files = authReq.files as Express.Multer.File[];
+    if (files && files.length > 0) {
+      const newImages = files.map((file) => file.path);
+      business.images = [...business.images, ...newImages];
+    }
+
+    // 5. Handle Image Deletions Ledger Logs Request Array
+    if (authReq.body.deletedImages) {
+      try {
+        const deleted: string[] = JSON.parse(authReq.body.deletedImages);
+        business.images = business.images.filter((img) => !deleted.includes(img));
+      } catch (e) {
+        console.error("Failed to parse deletedImages payload safely");
+      }
+    }
+
+    // 6. Assign Direct Schema Tracking Fields Safely via Loop Strategy
+    const allowedFields: Array<keyof AddBusinessBody> = [
+      'name', 'email', 'phoneNumber', 'category', 'location', 
+      'openTime', 'closeTime', 'description', 'websiteLink'
+    ];
+
+    allowedFields.forEach((field) => {
+      if (updateFields[field] !== undefined) {
+        // cast to any to circumvent tight type checking while mutating document records dynamically
+        (business as any)[field] = updateFields[field];
+      }
+    });
+
+    // 7. Save document changes triggering schema pre-hooks & validations smoothly
+    const updatedBusiness = await business.save();
+
+    return res.status(200).json({
+      success: true,
+      data: updatedBusiness,
+      message: 'Business updated successfully!'
+    });
+
+  } catch (error: unknown) {
+    console.error('Error patching business:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected server error occurred.';
+    return res.status(500).json({ success: false, error: errorMessage });
+  }
+};
+
+// POST /business/:id/review 
+export const addBusinessReview = async (req: Request, res: Response): Promise<void | Response> => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const { id } = req.params;
+    // 🚀 Added userName extraction fallback from incoming body data mapping
+    const { rating, comment, userName } = req.body; 
+
+    if (!authReq.user || !authReq.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized profile session missing.' });
+    }
+
+    if (!rating || !comment) {
+      return res.status(400).json({ success: false, message: 'Please provide both rating and review comment.' });
+    }
+
+    const business = await Business.findById(id);
+    if (!business) {
+      return res.status(404).json({ success: false, message: 'Business workspace entity not found.' });
+    }
+
+    // 🚀 RESOLUTION LAYER: Prioritize token auth name string parameter. 
+    // If undefined, grab the manually dispatched client-decoded payload option before defaulting out.
+    const resolvedReviewerName = authReq.user.name || userName || "Anonymous Reviewer";
+
+    const newReview = {
+      userId: authReq.user.id,
+      userName: resolvedReviewerName, 
+      rating: Number(rating),
+      comment: comment,
+      createdAt: new Date()
+    };
+
+    // Push review into schema array
+    business.reviews.push(newReview);
+    business.reviewCount = business.reviews.length;
+    
+    // Calculate running average rating score sequence
+    const totalRatingSum = business.reviews.reduce((sum, item) => sum + item.rating, 0);
+    business.rating = Math.round((totalRatingSum / business.reviewCount) * 10) / 10;
+
+    await business.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Review added successfully!',
+      data: business
+    });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Server error adding comments';
+    return res.status(500).json({ success: false, error: msg });
   }
 };

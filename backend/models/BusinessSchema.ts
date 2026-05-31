@@ -1,7 +1,18 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-// 1. Update the Interface to include images
+// 1. Interface for individual review entries
+export interface IReview {
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: Date;
+}
+
+// 2. Interface for TypeScript Business Document
 export interface IBusiness extends Document {
+  id: string; 
+  userId: string; 
   name: string;
   category: 'Restaurants' | 'Fashion' | 'Dry Food' | 'Logistics' | 'Home Services';
   location: string;
@@ -10,12 +21,21 @@ export interface IBusiness extends Document {
   openTime: string;
   closeTime: string;
   description?: string;
-  images: string[]; // <--- ADD THIS: Array of image paths/URLs
+  websiteLink?: string; 
+  images: string[];
+  reviews: IReview[];   // 🚀 Added sub-document layout reference array
+  rating: number;       // 🚀 Enforced number type to match aggregate calculation scripts
+  reviewCount: number;  // 🚀 Tracks overall numeric counts
+  tags?: string[];      // 保留 Optional user tags array parameter
   createdAt: Date;
 }
 
-// 2. Update the Schema to include images
+// 3. Schema Definition
 const BusinessSchema: Schema<IBusiness> = new Schema({
+  userId: {
+    type: String, 
+    required: true
+  },
   name: { type: String, required: true },
   category: { 
     type: String, 
@@ -25,24 +45,44 @@ const BusinessSchema: Schema<IBusiness> = new Schema({
   location: { type: String, required: true },
   email: { type: String, required: true },
   phoneNumber: { 
-    type: Schema.Types.Mixed, // Changed to Mixed to support both string and number safely
+    type: Schema.Types.Mixed, 
     required: true 
   },
   openTime: { type: String, required: true }, 
   closeTime: { type: String, required: true },
   description: { type: String },
-  
-  // --- ADD THIS FIELD ---
+  websiteLink: { type: String, default: "" }, 
   images: { 
     type: [String], 
-    default: [] // Ensures it's always an array, even if empty
+    default: [] 
   },
-
+  // 🚀 Integrated Reviews sub-document payload tree structure
+  reviews: [
+    {
+      userId: { type: String, required: true },
+      userName: { type: String, required: true },
+      rating: { type: Number, required: true, min: 1, max: 5 },
+      comment: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ],
+  rating: { type: Number, default: 0 },       // Defaulted to 0 for initial registration
+  reviewCount: { type: Number, default: 0 },  // Defaulted to 0 for tracking integrity
+  tags: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now }
+}, 
+{ 
+  // These options ensure 'id' is included when sending data to the frontend
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true },
+  versionKey: false 
 });
 
+// 4. Indexes
 BusinessSchema.index({ category: 1 });
+BusinessSchema.index({ userId: 1 }); 
 
-const Business: Model<IBusiness> = mongoose.model<IBusiness>('Business', BusinessSchema);
+// 5. Model Export
+const Business: Model<IBusiness> = mongoose.models.Business || mongoose.model<IBusiness>('Business', BusinessSchema);
 
 export default Business;

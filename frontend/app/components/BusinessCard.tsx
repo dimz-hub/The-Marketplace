@@ -2,9 +2,12 @@
 
 import React from 'react';
 import { Star, Clock, MapPin, MessageSquare, Dot } from 'lucide-react';
+import Link from 'next/link';
 
 interface BusinessCardProps {
   business: {
+    id?: string;  // Make it optional
+    _id?: string;
     name: string;
     image: string;
     rating: number;
@@ -18,7 +21,11 @@ interface BusinessCardProps {
 }
 
 const BusinessCard: React.FC<BusinessCardProps> = ({ business }) => {
+  console.log("Rendering BusinessCard for:", business);
+  const businessId = business.id || business._id;
   return (
+    <Link href={`/business/${businessId}`}>
+
     <div className="group flex flex-col md:flex-row bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 max-w-4xl mb-6 h-full md:h-56">
       
       {/* 1. Image Section - Fixed size on Desktop */}
@@ -91,6 +98,7 @@ const BusinessCard: React.FC<BusinessCardProps> = ({ business }) => {
         </div>
       </div>
     </div>
+    </Link>
   );
 };
 
