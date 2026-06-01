@@ -1,4 +1,4 @@
-import SearchResultsContent from '../components/SearchClient';
+import SearchResultsContent from './SearchClient';
 
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
