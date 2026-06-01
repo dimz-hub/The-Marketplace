@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, ChangeEvent, FormEvent, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -18,6 +18,12 @@ interface BackendErrorResponse {
   error?: string;
 }
 
+// Interface for explicitly passing derived search params as props
+interface SignInFormProps {
+  errorParam: string | null;
+  redirectToParam: string | null;
+}
+
 // Helper to determine if there is an OAuth error directly from the URL query params
 function getOAuthErrorMessage(errorQuery: string | null): string | null {
   if (errorQuery === 'oauth_failed') {
@@ -32,10 +38,9 @@ function getOAuthErrorMessage(errorQuery: string | null): string | null {
   return null;
 }
 
-// Inner content component handling the core logic
-function SignInFormContent() {
+// Inner content component handling the core logic via clean type-safe props
+function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // --- STATE ---
   const [formData, setFormData] = useState({
@@ -44,8 +49,8 @@ function SignInFormContent() {
   });
   const [loading, setLoading] = useState<boolean>(false);
   
-  // Directly derive the initial validation error message from the URL state right here
-  const initialError = getOAuthErrorMessage(searchParams.get('error'));
+  // Directly derive the initial validation error message from the passed prop state
+  const initialError = getOAuthErrorMessage(errorParam);
   const [error, setError] = useState<string | null>(initialError);
 
   // --- HANDLERS ---
@@ -69,7 +74,7 @@ function SignInFormContent() {
         localStorage.setItem('token', response.data.token);
         
         // Look up the intent query parameter here, fallback to root home directory
-        const destination = searchParams.get('redirectTo') || '/';
+        const destination = redirectToParam || '/';
         
         // Redirect them straight back to their intended protected page location
         router.push(destination);
@@ -86,7 +91,7 @@ function SignInFormContent() {
   };
 
   const handleGoogleLogin = (): void => {
-    const target = searchParams.get('redirectTo') || '/';
+    const target = redirectToParam || '/';
     
     // Updates the format to hit the explicit /auth/google initialization route
     window.location.href = `http://localhost:4000/auth/google?redirectTo=${encodeURIComponent(target)}`;
@@ -203,7 +208,7 @@ function SignInFormContent() {
       <div className="mt-6 text-center text-sm text-gray-500">
         Don't have an account yet?{' '}
         <Link 
-          href={`/signup${searchParams.get('redirectTo') ? `?redirectTo=${encodeURIComponent(searchParams.get('redirectTo')!)}` : ''}`} 
+          href={`/signup${redirectToParam ? `?redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`} 
           className="text-red-600 font-bold hover:underline"
         >
           Sign up
@@ -214,8 +219,18 @@ function SignInFormContent() {
   );
 }
 
-// Main page export with mandatory Next.js Suspense boundary wrapper
-export default function SignInPage() {
+// Next.js 15 wrapper that safely passes async search parameters down into your layout
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function SignInPage({ searchParams }: PageProps) {
+  // Await the asynchronous search params context mandated by Next.js 15 architectures
+  const resolvedParams = await searchParams;
+  
+  const errorValue = typeof resolvedParams.error === 'string' ? resolvedParams.error : null;
+  const redirectValue = typeof resolvedParams.redirectTo === 'string' ? resolvedParams.redirectTo : null;
+
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
       <Suspense fallback={
@@ -223,7 +238,7 @@ export default function SignInPage() {
           <Loader2 className="animate-spin text-gray-400" size={32} />
         </div>
       }>
-        <SignInFormContent />
+        <SignInFormContent errorParam={errorValue} redirectToParam={redirectValue} />
       </Suspense>
     </main>
   );

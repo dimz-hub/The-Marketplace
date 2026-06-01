@@ -3,38 +3,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, MapPin, ChevronDown, Bell, MessageSquare, UserCircle, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
+// 🚀 Define Props Interface to fix the IntrinsicAttributes compiler error
 interface NavbarProps {
-  color?: boolean; 
+  color?: boolean; // Optional prop so it doesn't break other pages
 }
 
 const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  // 🚀 Fixed: Initialize to empty string so nothing is highlighted by default on initial load
-  const [activeLink, setActiveLink] = useState('');
+  const [activeLink, setActiveLink] = useState('Restaurants');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   
+  // State to manage the visibility of the "More" dropdown
   const [isMoreOpen, setIsMoreOpen] = useState<boolean>(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
-  // 🚀 Dynamically highlight the active link based on the current URL query search parameter
-  useEffect(() => {
-    const currentCategory = searchParams.get('find_desc');
-    if (currentCategory) {
-      setActiveLink(currentCategory);
-    } else {
-      setActiveLink(''); // Reset highlight if not on a specific category search page
-    }
-  }, [searchParams]);
-
+  // Check authentication status on mount safely in client runtime
   useEffect(() => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
   }, []);
 
+  // Close the dropdown if clicking anywhere outside the container
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
@@ -45,18 +36,23 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Handler to route user to the search page with the correct category filter applied
   const handleCategoryClick = (category: string) => {
     setActiveLink(category);
     setIsMoreOpen(false);
+    
+    // Encodes the string correctly to handle spaces safely (e.g., 'Home Services' becomes 'Home%20Services')
     router.push(`/search?find_desc=${encodeURIComponent(category)}`);
   };
 
+  // Handoff sequence to terminate global sessions cleanly
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsLoggedIn(false);
     router.push('/login');
   };
 
+  // Dynamic Text Color variable to safely toggle based on the 'color' prop value
   const textColorClass = color ? 'text-gray-700 hover:text-gray-900' : 'text-white hover:underline';
   const categoryTextColorClass = color ? 'text-gray-600 hover:text-black' : 'text-white hover:text-black';
   const iconColorClass = color ? 'text-gray-600 hover:bg-gray-200/50' : 'text-white hover:bg-gray-100/20';
@@ -102,6 +98,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
         {/* Desktop Auth & Icons */}
         <div className="flex items-center gap-4">
           
+          {/* Conditional Items for Public vs Authenticated visitors */}
           {!isLoggedIn ? (
             <>
               <Link href="/business" className="hidden lg:block cursor-pointer">
@@ -133,6 +130,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
                   <MessageSquare size={22} />
                 </button>
                 
+                {/* Account Trigger with built-in logout capability */}
                 <div className={`group relative flex items-center gap-1 p-1 pr-2 rounded-full transition-colors cursor-pointer ${iconColorClass}`}>
                   <UserCircle size={32} />
                   <ChevronDown size={14} />

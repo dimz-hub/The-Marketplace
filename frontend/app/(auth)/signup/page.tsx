@@ -1,10 +1,16 @@
 "use client";
 
 import React, { useState, ChangeEvent, FormEvent, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { User, Mail, Lock, MapPin, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+
+// Interface for explicitly passing our server-resolved params down as props
+interface SignUpFormProps {
+  errorParam: string | null;
+  redirectToParam: string | null;
+}
 
 // Helper to determine if there is an OAuth error directly from the URL query params
 function getOAuthErrorMessage(errorQuery: string | null): string | null {
@@ -20,10 +26,9 @@ function getOAuthErrorMessage(errorQuery: string | null): string | null {
   return null;
 }
 
-// Inner form component to isolate the search parameter usage context
-function SignUpFormContent() {
+// Inner form component handling the core logic via type-safe props
+function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   
   // --- STATE ---
   const [formData, setFormData] = useState({
@@ -37,8 +42,8 @@ function SignUpFormContent() {
   
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Directly derive the initial error from the search parameters without useEffect side-effects
-  const initialError = getOAuthErrorMessage(searchParams.get('error'));
+  // Directly derive the initial error from the passed prop state
+  const initialError = getOAuthErrorMessage(errorParam);
   const [error, setError] = useState<string | null>(initialError);
 
   // --- HANDLERS ---
@@ -61,10 +66,10 @@ function SignUpFormContent() {
       if (response.data.success) {
         localStorage.setItem('token', response.data.token);
         
-        // Look up the intent query parameter here
-        const destination = searchParams.get('redirectTo') || '/';
+        // Look up the intent redirect prop here
+        const destination = redirectToParam || '/';
         
-        // This will redirect them straight back to /business instead of the home page!
+        // This will redirect them straight back to their intended protected destination!
         router.push(destination);
       }
     } catch (err: unknown) {
@@ -79,7 +84,7 @@ function SignUpFormContent() {
   };
 
   const handleGoogleLogin = (): void => {
-    const target = searchParams.get('redirectTo');
+    const target = redirectToParam;
     
     if (target) {
       // Forward the return target directly to your updated backend route
@@ -263,7 +268,7 @@ function SignUpFormContent() {
       <div className="mt-6 text-center text-sm text-gray-500">
         Already have an account?{' '}
         <Link 
-          href={`/login${searchParams.get('redirectTo') ? `?redirectTo=${encodeURIComponent(searchParams.get('redirectTo')!)}` : ''}`} 
+          href={`/login${redirectToParam ? `?redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`} 
           className="text-red-600 font-bold hover:underline"
         >
           Log in
@@ -274,8 +279,18 @@ function SignUpFormContent() {
   );
 }
 
-// Parent component providing the required Next.js Suspense context
-export default function SignUpPage() {
+// Next.js 15 asynchronous server-resolved route wrapper 
+interface PageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function SignUpPage({ searchParams }: PageProps) {
+  // Await the searchParams context natively to ensure seamless static compilation
+  const resolvedParams = await searchParams;
+  
+  const errorValue = typeof resolvedParams.error === 'string' ? resolvedParams.error : null;
+  const redirectValue = typeof resolvedParams.redirectTo === 'string' ? resolvedParams.redirectTo : null;
+
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
       <Suspense fallback={
@@ -283,7 +298,7 @@ export default function SignUpPage() {
           <Loader2 className="animate-spin text-gray-400" size={32} />
         </div>
       }>
-        <SignUpFormContent />
+        <SignUpFormContent errorParam={errorValue} redirectToParam={redirectValue} />
       </Suspense>
     </main>
   );
