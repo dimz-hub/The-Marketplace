@@ -13,10 +13,24 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const app = express();
 
+const allowedOrigins = [
+  'http://localhost:3000', // Local frontend
+  'https://the-marketplace-o4wa5ywuv-dimzhubs-projects.vercel.app/' // 🟢 Your live Vercel frontend URL
+];
+
 // Middleware
 // app.use(cors());
 app.use(cors({
-  origin: 'http://localhost:3000', // Your frontend URL
+  origin: function (origin, callback) {
+    // Allow server-to-server requests, Postman, or mobile apps that don't send an Origin header
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS policy'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true

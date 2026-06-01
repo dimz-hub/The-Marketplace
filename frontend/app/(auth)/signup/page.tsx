@@ -55,21 +55,21 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
     }));
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+  console.log(process.env.NEXT_PUBLIC_API_URL); // Debugging line to verify environment variable is loaded correctly
+
+ const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post('http://localhost:4000/auth/signup', formData);
+      // 🟢 Uses the environment variable if defined, otherwise falls back to localhost
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const response = await axios.post(`${API_BASE_URL}/auth/signup`, formData);
       
       if (response.data.success) {
         localStorage.setItem('token', response.data.token);
-        
-        // Look up the intent redirect prop here
         const destination = redirectToParam || '/';
-        
-        // This will redirect them straight back to their intended protected destination!
         router.push(destination);
       }
     } catch (err: unknown) {
