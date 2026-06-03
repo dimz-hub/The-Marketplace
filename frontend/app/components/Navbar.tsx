@@ -12,7 +12,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const router = useRouter();
-  const [activeLink, setActiveLink] = useState('Restaurants');
+  const [activeLink, setActiveLink] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   
   // State to manage the visibility of the "More" dropdown
