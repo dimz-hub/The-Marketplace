@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react'; // 🟢 Added Suspense
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Search, MapPin, Utensils, Scissors, Truck, Package, Wrench, Loader2 } from 'lucide-react';
@@ -26,19 +26,18 @@ const slides = [
   { url: "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1600", title: "Bulk quality, fresh daily.", placeholder: "Wholesalers, grains, pantry..." }
 ];
 
-const Hero: React.FC = () => {
+// 1. 🟢 Renamed to HeroComponent to isolate the component execution state
+const HeroComponent: React.FC = () => {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const [currentSlide, setCurrentSlide] = useState(0);
   const [search, setSearch] = useState<SearchState>({ term: '', location: '' });
   
-  // Suggestion Autocomplete States
   const [suggestions, setSuggestions] = useState<SuggestionItem[]>([]);
   const [showDropdown, setShowDropdown] = useState<boolean>(false);
   const [searchingSuggestions, setSearchingSuggestions] = useState<boolean>(false);
 
-  // Background slider loop
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -46,7 +45,6 @@ const Hero: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Debounced Suggestion Fetching Logic
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
       const queryStr = search.term.trim();
@@ -73,7 +71,6 @@ const Hero: React.FC = () => {
     return () => clearTimeout(delayDebounceFn);
   }, [search.term]);
 
-  // Close dropdown instantly if user clicks outside of it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -172,11 +169,9 @@ const Hero: React.FC = () => {
             </button>
           </form>
 
-          {/* 🚀 FIXED DROPDOWN WORKAROUND WITH DOUBLE-DIV LAYOUT */}
+          {/* SUGGESTIONS DROPDOWN */}
           {showDropdown && suggestions.length > 0 && (
             <div className="absolute left-2 right-2 md:left-4 md:right-auto md:w-[calc(50%-12px)] mt-2 bg-white rounded-xl shadow-2xl overflow-hidden z-50 border border-gray-100 transform-none animate-in fade-in slide-in-from-top-1 duration-150">
-              
-              {/* This inner div owns the actual scrolling behavior and hides scrollbar artifacts outside its round clipping path */}
               <div className="overflow-y-auto max-h-[260px] w-full rounded-xl
                 scrollbar-thin
                 [&::-webkit-scrollbar]:w-2
@@ -202,7 +197,6 @@ const Hero: React.FC = () => {
                   </div>
                 ))}
               </div>
-
             </div>
           )}
         </div>
@@ -230,4 +224,11 @@ const Hero: React.FC = () => {
   );
 };
 
-export default Hero;
+// 2. 🟢 DEFAULT EXPORT WRAPPER: Safely provides the Suspense context to satisfy Vercel compilation
+export default function Hero() {
+  return (
+    <Suspense fallback={<div className="h-[750px] w-full bg-slate-900 flex items-center justify-center text-white font-semibold">Loading Marketplace features...</div>}>
+      <HeroComponent />
+    </Suspense>
+  );
+}
