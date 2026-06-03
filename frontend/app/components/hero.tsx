@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, Suspense } from 'react'; // 🟢 Added Suspense
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Search, MapPin, Utensils, Scissors, Truck, Package, Wrench, Loader2 } from 'lucide-react';
@@ -26,7 +26,9 @@ const slides = [
   { url: "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=1600", title: "Bulk quality, fresh daily.", placeholder: "Wholesalers, grains, pantry..." }
 ];
 
-// 1. 🟢 Renamed to HeroComponent to isolate the component execution state
+// 🟢 Setup a dynamic base URL that defaults to localhost on your PC and uses the live server URL on Vercel
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 const HeroComponent: React.FC = () => {
   const router = useRouter();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -52,7 +54,8 @@ const HeroComponent: React.FC = () => {
       if (queryStr.length >= 2) {
         try {
           setSearchingSuggestions(true);
-          const response = await axios.get(`http://localhost:4000/business/suggestions?query=${queryStr}`);
+          // 🟢 Updated the hardcoded address string to use our flexible variable
+          const response = await axios.get(`${API_BASE_URL}/business/suggestions?query=${queryStr}`);
           if (response.data.success) {
             setSuggestions(response.data.data);
             setShowDropdown(true);
@@ -224,7 +227,6 @@ const HeroComponent: React.FC = () => {
   );
 };
 
-// 2. 🟢 DEFAULT EXPORT WRAPPER: Safely provides the Suspense context to satisfy Vercel compilation
 export default function Hero() {
   return (
     <Suspense fallback={<div className="h-[750px] w-full bg-slate-900 flex items-center justify-center text-white font-semibold">Loading Marketplace features...</div>}>
