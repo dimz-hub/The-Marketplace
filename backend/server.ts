@@ -15,7 +15,7 @@ const app = express();
 // Hardcoded explicit trusted origins list (Trailing slashes removed for crisp matching)
 const allowedOrigins = [
   'http://localhost:3000', 
-  'https://the-marketplace-7wa52cf47-dimzhubs-projects.vercel.app'
+  'https://the-marketplace-gflsyncjj-dimzhubs-projects.vercel.app'
 ];
 
 // Production-Grade Middleware Config
