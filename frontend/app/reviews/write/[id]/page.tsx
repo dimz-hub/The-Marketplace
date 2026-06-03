@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Star, Loader2, ArrowLeft } from 'lucide-react';
-import { jwtDecode } from 'jwt-decode'; // 🚀 Added to parse structural properties
+import { jwtDecode } from 'jwt-decode'; 
 
 interface BusinessHeaderInfo {
   name: string;
@@ -12,13 +12,15 @@ interface BusinessHeaderInfo {
   category: string;
 }
 
-// 🚀 Update token parsing schema matching configuration
 interface DecodedToken {
   id: string;
   email: string;
-  name?: string; // 👈 Catch name parameter structured inside your token string
+  name?: string; 
   exp: number;
 }
+
+// 🟢 Setup the dynamic environment variable fallback link
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function SubmitReviewPage() {
   const { id } = useParams();
@@ -36,7 +38,8 @@ export default function SubmitReviewPage() {
   useEffect(() => {
     const fetchHeaderData = async () => {
       try {
-        const response = await axios.get(`http://localhost:4000/business/${id}`);
+        // 🟢 FIXED: Replaced localhost with dynamic API_BASE_URL string interpolation
+        const response = await axios.get(`${API_BASE_URL}/business/${id}`);
         if (response.data.success) {
           setBusiness(response.data.data);
         }
@@ -50,67 +53,66 @@ export default function SubmitReviewPage() {
   }, [id]);
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (rating === 0) {
-    setErrorMsg("Please select a score rating index value between 1 and 5 stars.");
-    return;
-  }
-  if (comment.trim().length < 5) {
-    setErrorMsg("Please write a descriptive layout explanation statement review comment.");
-    return;
-  }
-
-  try {
-    setSubmitting(true);
-    setErrorMsg(null);
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      setErrorMsg("Authentication session reference keys missing. Please authenticate.");
+    e.preventDefault();
+    if (rating === 0) {
+      setErrorMsg("Please select a score rating index value between 1 and 5 stars.");
+      return;
+    }
+    if (comment.trim().length < 5) {
+      setErrorMsg("Please write a descriptive layout explanation statement review comment.");
       return;
     }
 
-    // 🚀 FIXED RESOLUTION SYSTEM
-    let reviewerName = "Anonymous Reviewer";
     try {
-      const decoded = jwtDecode<any>(token);
-      console.log("👉 CURRENT FRONTEND TOKEN LOOKUP POOL:", decoded);
+      setSubmitting(true);
+      setErrorMsg(null);
+      const token = localStorage.getItem('token');
       
-      // Look for the name directly, or inside a nested user/data object
-      if (decoded.name) {
-        reviewerName = decoded.name;
-      } else if (decoded.user && decoded.user.name) {
-        reviewerName = decoded.user.name;
+      if (!token) {
+        setErrorMsg("Authentication session reference keys missing. Please authenticate.");
+        return;
       }
-    } catch (e) {
-      console.error("Token decoding error details lookup", e);
-    }
 
-    const res = await axios.post(
-      `http://localhost:4000/business/${id}/review`,
-      { 
-        rating, 
-        comment, 
-        userName: reviewerName 
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+      let reviewerName = "Anonymous Reviewer";
+      try {
+        const decoded = jwtDecode<any>(token);
+        console.log("👉 CURRENT FRONTEND TOKEN LOOKUP POOL:", decoded);
+        
+        if (decoded.name) {
+          reviewerName = decoded.name;
+        } else if (decoded.user && decoded.user.name) {
+          reviewerName = decoded.user.name;
+        }
+      } catch (e) {
+        console.error("Token decoding error details lookup", e);
+      }
 
-    if (res.data.success) {
-      router.push(`/business/${id}`); 
+      // 🟢 FIXED: Replaced localhost with dynamic API_BASE_URL string interpolation
+      const res = await axios.post(
+        `${API_BASE_URL}/business/${id}/review`,
+        { 
+          rating, 
+          comment, 
+          userName: reviewerName 
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (res.data.success) {
+        router.push(`/business/${id}`); 
+      }
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || err.response?.data?.error || "Submission error occurred.");
+    } finally {
+      setSubmitting(false);
     }
-  } catch (err: any) {
-    setErrorMsg(err.response?.data?.message || err.response?.data?.error || "Submission error occurred.");
-  } finally {
-    setSubmitting(false);
-  }
-};
+  };
 
   if (fetching) return <div className="flex justify-center p-20"><Loader2 className="animate-spin text-gray-400" size={40} /></div>;
   if (!business) return <div className="p-20 text-center text-red-500 font-medium">{errorMsg || "Workspace data configuration error targets missing."}</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 mt-6">
+    <div className="max-w-2xl mx-auto p-4 md:p-6 mt-6">
       <button 
         onClick={() => router.back()}
         className="flex items-center gap-2 text-gray-500 hover:text-gray-800 font-semibold mb-6 text-sm transition-colors"
@@ -120,11 +122,12 @@ export default function SubmitReviewPage() {
 
       <div className="mb-8">
         <span className="text-xs font-bold uppercase tracking-wider text-[#007185] bg-teal-50 px-2.5 py-1 rounded-md">{business.category}</span>
-        <h1 className="text-4xl font-black text-gray-900 mt-2 mb-1">{business.name}</h1>
+        <h1 className="text-3xl md:text-4xl font-black text-gray-900 mt-2 mb-1">{business.name}</h1>
         <p className="text-gray-500 font-medium">📍 {business.location}</p>
       </div>
 
-      <form onSubmit={handleReviewSubmit} className="bg-white p-8 md:w-[60vw] rounded-2xl border border-gray-200 shadow-xl space-y-6">
+      {/* 🟢 FIXED: Replaced md:w-[60vw] with clean responsive sizing boundaries */}
+      <form onSubmit={handleReviewSubmit} className="bg-white p-6 md:p-8 w-full rounded-2xl border border-gray-200 shadow-xl space-y-6">
         {errorMsg && (
           <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold rounded-xl">
             {errorMsg}
