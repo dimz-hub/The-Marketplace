@@ -6,7 +6,6 @@ import axios from 'axios';
 import { Edit3, Globe, Star, MessageSquare } from 'lucide-react'; 
 import { jwtDecode } from 'jwt-decode'; 
 
-// 🚀 Match the expanded Mongoose schema parameters
 interface Review {
   userId: string;
   userName: string;
@@ -27,9 +26,9 @@ interface Business {
   description?: string;
   websiteLink?: string; 
   images: string[];
-  reviews: Review[];   // 🚀 Added array interface mapping
-  rating: number;       // 🚀 Connected global score counter
-  reviewCount: number;  // 🚀 Connected aggregate calculation total tracker
+  reviews: Review[];   
+  rating: number;      
+  reviewCount: number;  
 }
 
 interface DecodedToken {
@@ -37,6 +36,9 @@ interface DecodedToken {
   email: string;
   exp: number;
 }
+
+// 🟢 Setup the dynamic environment variable fallback link
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const BusinessDetails = () => {
   const { id } = useParams(); 
@@ -49,7 +51,8 @@ const BusinessDetails = () => {
   useEffect(() => {
     const fetchBusinessDetails = async () => {
       try {
-        const response = await axios.get<{ success: boolean; data: Business }>(`http://localhost:4000/business/${id}`);
+        // 🟢 FIXED: Replaced localhost with dynamic API_BASE_URL string interpolation
+        const response = await axios.get<{ success: boolean; data: Business }>(`${API_BASE_URL}/business/${id}`);
         const businessData = response.data.data;
         setBusiness(businessData);
 
@@ -85,7 +88,7 @@ const BusinessDetails = () => {
   return (
     <main className="max-w-6xl mx-auto p-6 relative">
       
-      {/* 🛠️ EDIT BUTTON CONDITIONAL LAYOUT */}
+      {/* EDIT BUTTON CONDITIONAL LAYOUT */}
       {isOwner && (
         <button
           onClick={() => router.push(`/business/edit/${id}`)} 
@@ -99,8 +102,9 @@ const BusinessDetails = () => {
       {/* Header / Cover Image */}
       {business.images && business.images.length > 0 && (
         <div className="w-full h-96 rounded-2xl overflow-hidden mb-8 shadow-inner border relative">
+          {/* 🟢 FIXED: Replaced hardcoded asset host url structure */}
           <img 
-            src={`http://localhost:4000/${business.images[0]}`} 
+            src={`${API_BASE_URL}/${business.images[0]}`} 
             className="w-full h-full object-cover" 
             alt={business.name} 
           />
@@ -112,7 +116,6 @@ const BusinessDetails = () => {
           <div className="flex flex-wrap items-baseline gap-3 mb-2">
             <h1 className="text-4xl font-extrabold">{business.name}</h1>
             
-            {/* 🚀 Dynamic Score Aggregate Badge Header View */}
             {business.reviewCount > 0 && (
               <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 font-bold px-2.5 py-1 rounded-lg text-sm">
                 <Star size={14} className="fill-amber-400 text-amber-400" />
@@ -126,16 +129,17 @@ const BusinessDetails = () => {
           
           <div className="grid grid-cols-2 gap-4 mb-10">
             {business.images.slice(1).map((img, i) => (
+              /* 🟢 FIXED: Swapped out asset gallery dynamic link mapping endpoints */
               <img 
                 key={i} 
-                src={`http://localhost:4000/${img}`} 
+                src={`${API_BASE_URL}/${img}`} 
                 className="rounded-lg h-48 w-full object-cover border" 
                 alt={`${business.name} gallery ${i + 1}`}
               />
             ))}
           </div>
 
-          {/* 🚀 NEW INTEGRATED REVIEW FEED SECTION */}
+          {/* REVIEW FEED SECTION */}
           <div className="border-t pt-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-900">
@@ -166,7 +170,6 @@ const BusinessDetails = () => {
                         </span>
                       </div>
                       
-                      {/* Individual Review Stars block mapping */}
                       <div className="flex gap-0.5">
                         {[...Array(5)].map((_, i) => (
                           <Star
