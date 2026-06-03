@@ -25,6 +25,9 @@ interface SearchResultsProps {
   locationParam: string;
 }
 
+// 🟢 Setup a dynamic base URL that defaults to localhost and uses your hosted URL on Vercel
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 export default function SearchResultsContent({ findDesc, locationParam }: SearchResultsProps) {
   const [businesses, setBusinesses] = useState<RawBusiness[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -44,7 +47,8 @@ export default function SearchResultsContent({ findDesc, locationParam }: Search
       
       setLoading(true);
       try {
-        const response = await axios.get<{ data: RawBusiness[] }>(`http://localhost:4000/business/search`, {
+        // 🟢 FIXED: Changed from hardcoded localhost to dynamic API_BASE_URL
+        const response = await axios.get<{ data: RawBusiness[] }>(`${API_BASE_URL}/business/search`, {
           params: { find_desc: findDesc }
         });
         setBusinesses(response.data.data);
@@ -188,8 +192,9 @@ export default function SearchResultsContent({ findDesc, locationParam }: Search
             <div className="flex flex-col gap-6">
               {businesses.length > 0 ? (
                 businesses.map((biz) => {
+                  // 🟢 FIXED: Changed image base paths from localhost to dynamic API_BASE_URL
                   const businessImage = biz.images && biz.images.length > 0 
-                    ? `http://localhost:4000/${biz.images[0].replace(/\\/g, '/')}` 
+                    ? `${API_BASE_URL}/${biz.images[0].replace(/\\/g, '/')}` 
                     : 'https://via.placeholder.com/400x300?text=No+Image';
 
                   return (
