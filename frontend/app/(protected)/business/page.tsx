@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, Suspense } from 'react';
-import { useRouter, usePathname, chParams } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'; // 🟢 Updated import
 import { Loader2 } from 'lucide-react';
 import BusinessForm from '../../components/BusinessForm';
 import Navbar from '@/app/components/Navbar';
@@ -9,7 +9,7 @@ import Navbar from '@/app/components/Navbar';
 function BusinessWorkspace() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = chParams();
+  const searchParams = useSearchParams(); // 🟢 Updated hook call
   
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
