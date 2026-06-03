@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, ChevronDown, Bell, MessageSquare, UserCircle, LogOut } from 'lucide-react';
+import { Search, MapPin, ChevronDown, Bell, MessageSquare, UserCircle, LogOut, Menu, X, Briefcase, PenTool } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -17,11 +17,11 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   
   const [isMoreOpen, setIsMoreOpen] = useState<boolean>(false);
-  // 🟢 Added a state variable to control the profile card dropdown visibility explicitly
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  // 🟢 State to manage the mobile slide-out menu drawer
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  // 🟢 Added a ref container to handle outside click closing behavior for the profile dropdown
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,12 +36,17 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
     }
   }, [searchParams]);
 
+  // Lock scrolling when the mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isMobileMenuOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
         setIsMoreOpen(false);
       }
-      // 🟢 Added conditional execution context inside the target click handler
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
       }
@@ -53,13 +58,15 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const handleCategoryClick = (category: string) => {
     setActiveLink(category);
     setIsMoreOpen(false);
+    setIsMobileMenuOpen(false); // 🟢 Close drawer on click
     router.push(`/search?find_desc=${encodeURIComponent(category)}`);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsLoggedIn(false);
-    setIsProfileOpen(false); // 🟢 Clean up component state state parameters
+    setIsProfileOpen(false); 
+    setIsMobileMenuOpen(false);
     router.push('/login');
   };
 
@@ -106,7 +113,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
         </div>
 
         {/* Desktop Auth & Icons */}
-        <div className="flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-4">
           {!isLoggedIn ? (
             <>
               <Link href="/business" className="hidden lg:block cursor-pointer">
@@ -138,7 +145,6 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
                   <MessageSquare size={22} />
                 </button>
                 
-                {/* 🟢 FIXED: Changed to click/tap activation architecture using state instead of absolute CSS rules */}
                 <div 
                   ref={profileMenuRef}
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -147,12 +153,11 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
                   <UserCircle size={32} />
                   <ChevronDown size={14} className={`transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
                   
-                  {/* 🟢 FIXED: Swapped 'hidden group-hover:block' layout constraints out for state evaluations */}
                   {isProfileOpen && (
-                    <div className="absolute right-0 top-11 w-40 bg-white border border-gray-200 rounded-lg shadow-xl py-2 text-gray-900 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="absolute right-0 top-11 w-40 bg-white border border-gray-200 rounded-lg shadow-xl py-2 text-gray-900 z-50">
                       <button 
                         onClick={(e) => {
-                          e.stopPropagation(); // Stops the container click event from immediately re-opening the menu
+                          e.stopPropagation(); 
                           handleLogout();
                         }}
                         className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50 font-bold"
@@ -166,11 +171,95 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
             </>
           )}
         </div>
+
+        {/* 🟢 Mobile Menu Trigger Button (Hamburger Icon) */}
+        <div className="md:hidden flex items-center">
+          <button 
+            onClick={() => setIsMobileMenuOpen(true)}
+            className={`p-2 rounded-lg transition-colors ${color ? 'text-gray-800' : 'text-white'}`}
+          >
+            <Menu size={28} />
+          </button>
+        </div>
       </div>
 
-      {/* Bottom Bar: Categories/Links */}
+      {/* --- MOBILE DRAWER SLIDE OUT --- */}
+      {/* Background Dim Backdrop */}
+      <div 
+        className={`fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 md:hidden ${
+          isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsMobileMenuOpen(false)}
+      />
+
+      {/* Drawer content layout */}
+      <aside className={`fixed top-0 right-0 h-full w-[280px] bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out p-6 md:hidden text-gray-900 ${
+        isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        <div className="flex justify-between items-center mb-8 border-b pb-4">
+          <span className="font-black text-xl text-[#d32323]">Menu</span>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="p-1 hover:bg-gray-100 rounded-full">
+            <X size={24} className="text-gray-600" />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* Marketplace Features */}
+          <Link href="/business" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 font-bold text-gray-800 hover:text-red-600 py-1 transition-colors">
+            <Briefcase size={20} className="text-gray-500" /> Marketplace for Business
+          </Link>
+          
+          <Link href="/reviews/search" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 font-bold text-gray-800 hover:text-red-600 py-1 transition-colors">
+            <PenTool size={20} className="text-gray-500" /> Write a Review
+          </Link>
+
+          <hr className="border-gray-100" />
+
+          {/* Categories Title */}
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Categories</p>
+            <div className="flex flex-col gap-4 pl-1">
+              {['Restaurants', 'Home Services', 'Fashion', 'Dry Foods', 'Logistics'].map((link) => (
+                <button
+                  key={link}
+                  onClick={() => handleCategoryClick(link)}
+                  className={`text-left text-base font-semibold transition-colors ${
+                    activeLink === link ? 'text-[#d32323]' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  {link}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <hr className="border-gray-100 mt-auto" />
+
+          {/* Dynamic Mobile Auth Controls */}
+          <div className="pt-4">
+            {!isLoggedIn ? (
+              <div className="flex flex-col gap-3">
+                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full">
+                  <button className="w-full py-2.5 font-bold border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Log In</button>
+                </Link>
+                <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)} className="w-full">
+                  <button className="w-full py-2.5 font-bold bg-[#d32323] text-white rounded-md hover:bg-[#b01d1d]">Sign Up</button>
+                </Link>
+              </div>
+            ) : (
+              <button 
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <LogOut size={18} /> Log Out
+              </button>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* Desktop Bottom Bar: Categories/Links (Hidden on Mobile) */}
       <div className="max-w-7xl mx-auto px-4 h-12 hidden md:flex items-center gap-8">
-        {/* Category mapping rules go here... */}
         {['Restaurants', 'Home Services', 'Fashion'].map((link) => (
           <button
             key={link}
@@ -201,7 +290,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
 
           {/* Floating Dropdown Card */}
           {isMoreOpen && (
-            <div className="absolute top-full left-0 w-44 bg-white border border-gray-200 shadow-xl rounded-lg py-1 mt-1 z-50 text-gray-900 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute top-full left-0 w-44 bg-white border border-gray-200 shadow-xl rounded-lg py-1 mt-1 z-50 text-gray-900">
               <button
                 onClick={() => handleCategoryClick('Dry Foods')}
                 className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${activeLink === 'Dry Foods' ? 'text-[#d32323] font-bold bg-red-50/50' : 'text-gray-700'}`}
