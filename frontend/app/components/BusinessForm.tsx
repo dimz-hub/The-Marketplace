@@ -15,7 +15,7 @@ interface FormData {
   openTime: string;
   closeTime: string;
   description: string;
-  websiteLink: string; // 🚀 Added new link tracking property
+  websiteLink: string; 
 }
 
 interface BackendErrorResponse {
@@ -36,13 +36,16 @@ interface BusinessRegistrationProps {
   editId?: string | null;
 }
 
+// 🟢 Setup the dynamic environment variable fallback link
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) => {
   const router = useRouter();
   
   const [formData, setFormData] = useState<FormData>({
     name: '', email: '', phoneNumber: '', category: '',
     location: '', openTime: '', closeTime: '', description: '',
-    websiteLink: '' // 🚀 Initialized state string
+    websiteLink: '' 
   });
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -59,7 +62,8 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
       if (!editId) return;
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:4000/business/${editId}`);
+        // 🟢 FIXED: Replaced localhost with dynamic API_BASE_URL string interpolation
+        const response = await axios.get(`${API_BASE_URL}/business/${editId}`);
         if (response.data.success && response.data.data) {
           const b = response.data.data;
           setFormData({
@@ -71,13 +75,14 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
             openTime: b.openTime || '',
             closeTime: b.closeTime || '',
             description: b.description || '',
-            websiteLink: b.websiteLink || '' // 🚀 Populates link string when editing
+            websiteLink: b.websiteLink || '' 
           });
           
           setDeletedImages([]);
 
           if (b.images && b.images.length > 0) {
-            setPreviews(b.images.map((img: string) => `http://localhost:4000/${img}`));
+            // 🟢 FIXED: Replaced asset host mapping logic with API_BASE_URL
+            setPreviews(b.images.map((img: string) => `${API_BASE_URL}/${img}`));
           }
         }
       } catch (error) {
@@ -108,11 +113,12 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
   const removeImage = (index: number) => {
     const imageToRemove = previews[index];
 
-    if (imageToRemove.startsWith('http://localhost:4000/')) {
-      const rawPath = imageToRemove.replace('http://localhost:4000/', '');
+    // 🟢 FIXED: Replaced hardcoded checks so image removal matches your cloud/production host string context
+    if (imageToRemove.startsWith(`${API_BASE_URL}/`)) {
+      const rawPath = imageToRemove.replace(`${API_BASE_URL}/`, '');
       setDeletedImages((prev) => [...prev, rawPath]);
     } else {
-      const newFilePreviews = previews.filter(p => !p.startsWith('http://localhost:4000/'));
+      const newFilePreviews = previews.filter(p => !p.startsWith(`${API_BASE_URL}/`));
       const localFileIndex = newFilePreviews.indexOf(imageToRemove);
       
       if (localFileIndex !== -1) {
@@ -150,9 +156,10 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
     }
 
     try {
+      // 🟢 FIXED: Replaces creation and modification endpoints with API_BASE_URL variables
       const url = editId 
-        ? `http://localhost:4000/business/update/${editId}` 
-        : 'http://localhost:4000/business/register';
+        ? `${API_BASE_URL}/business/update/${editId}` 
+        : `${API_BASE_URL}/business/register`;
 
       const method = editId ? 'patch' : 'post';
 
@@ -173,7 +180,7 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
           setFormData({
             name: '', email: '', phoneNumber: '', category: '',
             location: '', openTime: '', closeTime: '', description: '',
-            websiteLink: '' // 🚀 Reset on complete form clear routines
+            websiteLink: '' 
           });
           setSelectedFiles([]);
           setPreviews([]);
@@ -248,7 +255,6 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
             value={formData.location} onChange={handleChange} required />
         </FieldsetGroup>
 
-        {/* 🚀 NEW OPTIONAL LINK FIELD */}
         <FieldsetGroup label="Website Link (Optional)">
           <input 
             type="url" 
