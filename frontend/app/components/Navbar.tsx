@@ -17,7 +17,12 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   
   const [isMoreOpen, setIsMoreOpen] = useState<boolean>(false);
+  // 🟢 Added a state variable to control the profile card dropdown visibility explicitly
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  // 🟢 Added a ref container to handle outside click closing behavior for the profile dropdown
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -36,6 +41,10 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
         setIsMoreOpen(false);
       }
+      // 🟢 Added conditional execution context inside the target click handler
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -50,12 +59,11 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsLoggedIn(false);
+    setIsProfileOpen(false); // 🟢 Clean up component state state parameters
     router.push('/login');
   };
 
   const textColorClass = color ? 'text-gray-700 hover:text-gray-900' : 'text-white hover:underline';
-  
-  // 🟢 FIXED: Removed 'hover:text-black' modifications to ensure clean text behavior
   const categoryTextColorClass = color ? 'text-gray-600 hover:text-gray-800' : 'text-white/90 hover:text-white';
   const iconColorClass = color ? 'text-gray-600 hover:bg-gray-200/50' : 'text-white hover:bg-gray-100/20';
 
@@ -130,18 +138,29 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
                   <MessageSquare size={22} />
                 </button>
                 
-                <div className={`group relative flex items-center gap-1 p-1 pr-2 rounded-full transition-colors cursor-pointer ${iconColorClass}`}>
+                {/* 🟢 FIXED: Changed to click/tap activation architecture using state instead of absolute CSS rules */}
+                <div 
+                  ref={profileMenuRef}
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className={`relative flex items-center gap-1 p-1 pr-2 rounded-full transition-colors cursor-pointer ${iconColorClass}`}
+                >
                   <UserCircle size={32} />
-                  <ChevronDown size={14} />
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
                   
-                  <div className="absolute right-0 top-10 w-40 bg-white border border-gray-200 rounded-lg shadow-xl py-2 hidden group-hover:block text-gray-900">
-                    <button 
-                      onClick={handleLogout}
-                      className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50 font-bold"
-                    >
-                      <LogOut size={14} /> Log Out
-                    </button>
-                  </div>
+                  {/* 🟢 FIXED: Swapped 'hidden group-hover:block' layout constraints out for state evaluations */}
+                  {isProfileOpen && (
+                    <div className="absolute right-0 top-11 w-40 bg-white border border-gray-200 rounded-lg shadow-xl py-2 text-gray-900 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation(); // Stops the container click event from immediately re-opening the menu
+                          handleLogout();
+                        }}
+                        className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50 font-bold"
+                      >
+                        <LogOut size={14} /> Log Out
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -151,6 +170,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
 
       {/* Bottom Bar: Categories/Links */}
       <div className="max-w-7xl mx-auto px-4 h-12 hidden md:flex items-center gap-8">
+        {/* Category mapping rules go here... */}
         {['Restaurants', 'Home Services', 'Fashion'].map((link) => (
           <button
             key={link}
