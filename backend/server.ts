@@ -15,7 +15,7 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:3000', // Local frontend
-  'https://the-marketplace-o4wa5ywuv-dimzhubs-projects.vercel.app/' // 🟢 Your live Vercel frontend URL
+  'https://the-marketplace-7wa52cf47-dimzhubs-projects.vercel.app/' // 🟢 Your live Vercel frontend URL
 ];
 
 // Middleware
