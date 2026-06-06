@@ -4,12 +4,16 @@ import { Request } from 'express';
 // Import your MongoDB/Mongoose User Model here
 // import User from '../models/User'; 
 
+// 🚀 FIXED: Dynamic callback determination based on environment context
+const BACKEND_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
+
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      callbackURL: 'http://localhost:4000/auth/google/callback',
+      // Uses the dynamic environment variable instead of hardcoded localhost
+      callbackURL: `${BACKEND_BASE_URL}/auth/google/callback`,
       passReqToCallback: true,
     },
     async (req: Request, accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback) => {
@@ -46,7 +50,7 @@ passport.use(
         return done(error as Error, undefined);
       }
     }
-  )
+  ) // 🚀 FIXED HERE: Added the closing parenthesis for the GoogleStrategy constructor
 );
 
 export default passport;

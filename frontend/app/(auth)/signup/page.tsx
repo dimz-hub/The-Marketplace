@@ -3,54 +3,61 @@
 import React, { useState, ChangeEvent, FormEvent, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { User, Mail, Lock, MapPin, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
-// Interface for explicitly passing our server-resolved params down as props
+// Define expected server response payload structures
+interface SignUpResponse {
+  success: boolean;
+  token: string;
+  message?: string;
+}
+
+interface BackendErrorResponse {
+  message?: string;
+  error?: string;
+}
+
+// Interface for explicitly passing derived search params as props
 interface SignUpFormProps {
   errorParam: string | null;
   redirectToParam: string | null;
 }
 
-// 🚀 Globally set the dynamic environment variable fallback link to handle cross-device routes
+// 🚀 Setup the dynamic environment variable fallback link to handle cross-device mobile routes
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Helper to determine if there is an OAuth error directly from the URL query params
 function getOAuthErrorMessage(errorQuery: string | null): string | null {
   if (errorQuery === 'oauth_failed') {
-    return 'Google authentication failed. Please try again.';
+    return 'Google registration failed. Please try again.';
   }
   if (errorQuery === 'no_user') {
-    return 'Could not retrieve user data from profile initialization.';
+    return 'Could not retrieve user profile payload during setup registration.';
   }
   if (errorQuery === 'oauth_token_missing') {
-    return 'Secure callback session expired. Please sign in again.';
+    return 'Secure callback registration session expired. Please try again.';
   }
   return null;
 }
 
-// Inner form component handling the core logic via type-safe props
+// Inner content component handling the core registration logic via clean type-safe props
 function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
   const router = useRouter();
-  
+
   // --- STATE ---
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
     email: '',
-    password: '',
-    zipcode: '',
-    role: 'user' // Default role
+    password: ''
   });
-  
   const [loading, setLoading] = useState<boolean>(false);
-
-  // Directly derive the initial error from the passed prop state
+  
+  // Directly derive the initial validation error message from the passed prop state
   const initialError = getOAuthErrorMessage(errorParam);
   const [error, setError] = useState<string | null>(initialError);
 
   // --- HANDLERS ---
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>): void => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -58,41 +65,64 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
     }));
   };
 
-  console.log(API_BASE_URL); // Debugging line to verify active environment variable pathing context
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/signup`, formData);
+      // 🚀 Adjusted to target your creation route handler endpoint instead
+      const response = await axios.post<SignUpResponse>(`${API_BASE_URL}/auth/signup`, formData);
       
       if (response.data.success) {
         localStorage.setItem('token', response.data.token);
+        
+        // Look up the intent query parameter here, fallback to root home directory
         const destination = redirectToParam || '/';
+        
+        // Redirect them straight back to their intended protected page location
         router.push(destination);
       }
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('An unexpected error occurred. Please try again.');
+      let errorMessage = 'An unexpected error occurred during account creation. Please try again.';
+      if (axios.isAxiosError<BackendErrorResponse>(err)) {
+        errorMessage = err.response?.data?.message || err.response?.data?.error || err.message;
       }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  // 🚀 INTEGRATED: Direct-to-Google OAuth Flow Handler (Bypasses Render screen flashes)
   const handleGoogleLogin = (): void => {
-    const target = redirectToParam;
+    const target = redirectToParam || '/';
     
-    // 🚀 FIXED: Replaced hardcoded localhost endpoints with dynamic API_BASE_URL configuration matrix parameters
-    if (target) {
-      window.location.href = `${API_BASE_URL}/auth/google?redirectTo=${encodeURIComponent(target)}`;
-    } else {
-      window.location.href = `${API_BASE_URL}/auth/google`;
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    
+    if (!googleClientId) {
+      console.warn("Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable!");
+      setError("Google authentication is currently unconfigured. Missing Client ID.");
+      return;
     }
+    
+    // 1. Define your Google OAuth Configuration
+    const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
+    
+    // 2. Point this EXACTLY to the callback path on your Render backend server
+    const backendCallbackUrl = `${API_BASE_URL}/auth/google/callback`; 
+
+    const params = new URLSearchParams({
+      client_id: googleClientId,
+      redirect_uri: backendCallbackUrl,
+      response_type: 'code',
+      scope: 'openid profile email',
+      // Pass your final destination route state through to Google so it persists
+      state: target, 
+    });
+
+    // Send the user directly to Google without seeing the Render domain first
+    window.location.href = `${googleAuthUrl}?${params.toString()}`;
   };
 
   return (
@@ -101,7 +131,7 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Create your account</h1>
-        <p className="text-sm text-gray-500 mt-1">Join the ultimate marketplace outlet platform</p>
+        <p className="text-sm text-gray-500 mt-1">Get started with your marketplace outlet platform account</p>
       </div>
 
       {/* Google Authentication Trigger Button */}
@@ -128,13 +158,13 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
             d="M12 4.909c1.905 0 3.432.741 4.14 1.414l3.11-3.11C17.273 1.214 14.882 0 12 0 7.33 0 3.33 2.69 1.41 6.62l3.856 3.145A4.475 4.475 0 0 1 12 4.91z"
           />
         </svg>
-        Continue with Google
+        Sign up with Google
       </button>
 
       {/* Visual Content Break Divider */}
       <div className="relative flex py-2 items-center mb-6">
         <div className="flex-grow border-t border-gray-200"></div>
-        <span className="flex-shrink mx-4 text-xs font-bold text-gray-400 uppercase">Or email signup</span>
+        <span className="flex-shrink mx-4 text-xs font-bold text-gray-400 uppercase">Or email register</span>
         <div className="flex-grow border-t border-gray-200"></div>
       </div>
 
@@ -145,44 +175,8 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
         </div>
       )}
 
-      {/* Sign Up Form */}
+      {/* Credential Form */}
       <form onSubmit={handleSubmit} className="space-y-5">
-        
-        {/* First & Last Name Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-2">First Name</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                name="firstName"
-                required
-                value={formData.firstName}
-                onChange={handleChange}
-                placeholder="John"
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Last Name</label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                name="lastName"
-                required
-                value={formData.lastName}
-                onChange={handleChange}
-                placeholder="Doe"
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Email Address */}
         <div>
           <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Email Address</label>
@@ -217,38 +211,6 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
           </div>
         </div>
 
-        {/* Zipcode & Account Type Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Zipcode / Postal</label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input
-                type="text"
-                name="zipcode"
-                required
-                value={formData.zipcode}
-                onChange={handleChange}
-                placeholder="100001"
-                className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase mb-2">I am a...</label>
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all appearance-none cursor-pointer"
-            >
-              <option value="user">Regular Customer</option>
-              <option value="owner">Business Owner</option>
-            </select>
-          </div>
-        </div>
-
         {/* Submit Button */}
         <button
           type="submit"
@@ -259,20 +221,20 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
             <Loader2 className="animate-spin" size={18} />
           ) : (
             <>
-              Create Account <ArrowRight size={16} />
+              Sign Up <ArrowRight size={16} />
             </>
           )}
         </button>
       </form>
 
-      {/* Footer Link */}
+      {/* Footer Navigation Link */}
       <div className="mt-6 text-center text-sm text-gray-500">
         Already have an account?{' '}
         <Link 
           href={`/login${redirectToParam ? `?redirectTo=${encodeURIComponent(redirectToParam)}` : ''}`} 
           className="text-red-600 font-bold hover:underline"
         >
-          Log in
+          Sign in
         </Link>
       </div>
 
@@ -280,13 +242,13 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
   );
 }
 
-// Next.js 15 asynchronous server-resolved route wrapper 
+// Next.js 15 wrapper that safely passes async search parameters down into your layout
 interface PageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
 export default async function SignUpPage({ searchParams }: PageProps) {
-  // Await the searchParams context natively to ensure seamless static compilation
+  // Await the asynchronous search params context mandated by Next.js 15 architectures
   const resolvedParams = await searchParams;
   
   const errorValue = typeof resolvedParams.error === 'string' ? resolvedParams.error : null;

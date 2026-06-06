@@ -5,6 +5,7 @@ import { signUp, login } from '../controllers/authController';
 
 const router: Router = express.Router();
 const JWT_SECRET: string = process.env.JWT_SECRET || 'your_super_secret_jwt_key';
+const FRONTEND_URL: string = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // Define the exact shape of the user structure returned by your Passport Google callback
 interface GoogleUser {
@@ -40,32 +41,42 @@ router.get(
 // @desc    Google returns the user here after successful consent with state parameter preserved
 router.get(
   '/google/callback',
-  passport.authenticate('google', { 
-    failureRedirect: 'http://localhost:3000/login?error=oauth_failed', 
-    session: false 
-  }),
-  (req: Request, res: Response) => {
-    // Type-safe extraction: Cast req.user to our custom interface instead of 'any'
-    const user = req.user as GoogleUser | undefined;
-
-    if (!user) {
-      return res.redirect('http://localhost:3000/login?error=no_user');
-    }
-
-    // Passport automatically parses Google's state response parameter and drops it into req.query.state
+  (req: Request, res: Response, next: NextFunction) => {
+    // 1. Capture the destination tracking code returned cleanly from Google's query parameters first
     const targetDestination = (req.query.state as string) || '/';
 
-    // Generate your app's JWT token for the user session using the typed properties
-    const token = jwt.sign(
-      { id: user.id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    // 2. Use a custom callback pattern to control failures cleanly without displaying intermediate raw text pages
+    passport.authenticate('google', { session: false }, (err: any, user: unknown) => {
+      if (err || !user) {
+        console.error("Google passport authentication failed:", err);
+        return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+      }
 
-    // Securely deliver the token AND the return location back to your Next.js application frontend
-    res.redirect(
-      `http://localhost:3000/login-success?token=${token}&redirectTo=${encodeURIComponent(targetDestination)}`
-    );
+      // Type-safe extraction: Cast user payload to our interface context safely
+      const googleUser = user as GoogleUser;
+
+      try {
+        // 3. Generate your app's JWT token for the user session using the typed properties
+        const token = jwt.sign(
+          { 
+            id: googleUser.id, 
+            email: googleUser.email,
+            name: googleUser.firstName 
+          },
+          JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+
+        // 4. Securely deliver the token AND the return location back to your Next.js application frontend
+        // Note: Modified back to route to your application route root context matching your previous frontend structures
+        return res.redirect(
+          `${FRONTEND_URL}?token=${token}&redirectTo=${encodeURIComponent(targetDestination)}`
+        );
+      } catch (tokenError) {
+        console.error("JWT creation error within OAuth context:", tokenError);
+        return res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
+      }
+    })(req, res, next);
   }
 );
 

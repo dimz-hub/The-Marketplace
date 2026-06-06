@@ -71,7 +71,6 @@ function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
     setError(null);
 
     try {
-      // 🚀 FIXED: Replaced hardcoded localhost url string with dynamic configuration
       const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/login`, formData);
       
       if (response.data.success) {
@@ -94,11 +93,35 @@ function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
     }
   };
 
+  // 🚀 INTEGRATED: Direct-to-Google OAuth Flow Handler
   const handleGoogleLogin = (): void => {
     const target = redirectToParam || '/';
     
-    // 🚀 FIXED: Replaced localhost with dynamic API_BASE_URL so mobile routing resolves properly
-    window.location.href = `${API_BASE_URL}/auth/google?redirectTo=${encodeURIComponent(target)}`;
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    
+    if (!googleClientId) {
+      console.warn("Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID environment variable!");
+      setError("Google authentication is currently unconfigured. Missing Client ID.");
+      return;
+    }
+    
+    // 1. Define your Google OAuth Configuration
+    const googleAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
+    
+    // 2. Point this EXACTLY to the callback path on your Render backend server
+    const backendCallbackUrl = `${API_BASE_URL}/auth/google/callback`; 
+
+    const params = new URLSearchParams({
+      client_id: googleClientId,
+      redirect_uri: backendCallbackUrl,
+      response_type: 'code',
+      scope: 'openid profile email',
+      // Pass your final destination route state through to Google so it persists
+      state: target, 
+    });
+
+    // Send the user directly to Google without seeing the Render domain first
+    window.location.href = `${googleAuthUrl}?${params.toString()}`;
   };
 
   return (
