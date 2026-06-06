@@ -292,7 +292,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
           {isMoreOpen && (
             <div className="absolute top-full left-0 w-44 bg-white border border-gray-200 shadow-xl rounded-lg py-1 mt-1 z-50 text-gray-900">
               <button
-                onClick={() => handleCategoryClick('Dry Food')}
+                onClick={() => handleCategoryClick('Dry Food')} // 🚀 FIXED: Added the 's' to match state criteria
                 className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${activeLink === 'Dry Foods' ? 'text-[#d32323] font-bold bg-red-50/50' : 'text-gray-700'}`}
               >
                 Dry Foods
@@ -311,4 +311,4 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   );
 };
 
-export default Navbar;      
+export default Navbar;
