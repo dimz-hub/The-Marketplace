@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, ChangeEvent, FormEvent, Suspense } from 'react';
+import React, { useState, ChangeEvent, FormEvent, Suspense, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
@@ -24,7 +24,7 @@ interface SignInFormProps {
   redirectToParam: string | null;
 }
 
-// 🚀 Setup the dynamic environment variable fallback link to handle cross-device mobile routes
+// Setup the dynamic environment variable fallback link to handle cross-device mobile routes
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 // Helper to determine if there is an OAuth error directly from the URL query params
@@ -55,6 +55,23 @@ function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
   // Directly derive the initial validation error message from the passed prop state
   const initialError = getOAuthErrorMessage(errorParam);
   const [error, setError] = useState<string | null>(initialError);
+
+  // --- 🚀 INTEGRATED: PRE-WARM RENDER PING ---
+  useEffect(() => {
+    // Fires immediately when the login card mounts to wake up sleeping Render free-tier containers
+    const warmUpBackend = async () => {
+      try {
+        console.log("Dispatched spin-up ping to wake up the Render service instance...");
+        // Calling your backend root or base URL silently
+        await fetch(API_BASE_URL, { mode: 'no-cors' }); 
+        console.log("Render backend response received or handshake initialized successfully.");
+      } catch (pingError) {
+        console.warn("Silent wake-up request issued. Handshake resolving backend context background cycles...", pingError);
+      }
+    };
+
+    warmUpBackend();
+  }, []);
 
   // --- HANDLERS ---
   const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -93,7 +110,7 @@ function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
     }
   };
 
-  // 🚀 INTEGRATED: Direct-to-Google OAuth Flow Handler
+  // Direct-to-Google OAuth Flow Handler
   const handleGoogleLogin = (): void => {
     const target = redirectToParam || '/';
     
