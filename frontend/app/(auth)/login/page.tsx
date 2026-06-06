@@ -24,6 +24,9 @@ interface SignInFormProps {
   redirectToParam: string | null;
 }
 
+// 🚀 Setup the dynamic environment variable fallback link to handle cross-device mobile routes
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 // Helper to determine if there is an OAuth error directly from the URL query params
 function getOAuthErrorMessage(errorQuery: string | null): string | null {
   if (errorQuery === 'oauth_failed') {
@@ -68,7 +71,8 @@ function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
     setError(null);
 
     try {
-      const response = await axios.post<LoginResponse>('http://localhost:4000/auth/login', formData);
+      // 🚀 FIXED: Replaced hardcoded localhost url string with dynamic configuration
+      const response = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/login`, formData);
       
       if (response.data.success) {
         localStorage.setItem('token', response.data.token);
@@ -93,8 +97,8 @@ function SignInFormContent({ errorParam, redirectToParam }: SignInFormProps) {
   const handleGoogleLogin = (): void => {
     const target = redirectToParam || '/';
     
-    // Updates the format to hit the explicit /auth/google initialization route
-    window.location.href = `http://localhost:4000/auth/google?redirectTo=${encodeURIComponent(target)}`;
+    // 🚀 FIXED: Replaced localhost with dynamic API_BASE_URL so mobile routing resolves properly
+    window.location.href = `${API_BASE_URL}/auth/google?redirectTo=${encodeURIComponent(target)}`;
   };
 
   return (

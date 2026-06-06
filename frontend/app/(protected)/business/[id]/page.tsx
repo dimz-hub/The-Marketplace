@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-import { Edit3, Globe, Star, MessageSquare } from 'lucide-react'; 
+import { Edit3, Globe, Star, MessageSquare, Utensils, ChevronDown, ChevronUp } from 'lucide-react'; 
 import { jwtDecode } from 'jwt-decode'; 
 
 interface Review {
@@ -12,6 +12,11 @@ interface Review {
   rating: number;
   comment: string;
   createdAt: string;
+}
+
+interface MenuItem {
+  name: string;
+  price: string;
 }
 
 interface Business {
@@ -29,6 +34,7 @@ interface Business {
   reviews: Review[];   
   rating: number;      
   reviewCount: number;  
+  menu?: MenuItem[]; // 🚀 Added menu items type array reference
 }
 
 interface DecodedToken {
@@ -37,7 +43,6 @@ interface DecodedToken {
   exp: number;
 }
 
-// 🟢 Setup the dynamic environment variable fallback link
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const BusinessDetails = () => {
@@ -47,11 +52,11 @@ const BusinessDetails = () => {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isOwner, setIsOwner] = useState<boolean>(false); 
+  const [menuOpen, setMenuOpen] = useState<boolean>(false); // 🚀 Dropdown collapse toggle state tracker
 
   useEffect(() => {
     const fetchBusinessDetails = async () => {
       try {
-        // 🟢 FIXED: Replaced localhost with dynamic API_BASE_URL string interpolation
         const response = await axios.get<{ success: boolean; data: Business }>(`${API_BASE_URL}/business/${id}`);
         const businessData = response.data.data;
         setBusiness(businessData);
@@ -102,7 +107,6 @@ const BusinessDetails = () => {
       {/* Header / Cover Image */}
       {business.images && business.images.length > 0 && (
         <div className="w-full h-96 rounded-2xl overflow-hidden mb-8 shadow-inner border relative">
-          {/* 🟢 FIXED: Replaced hardcoded asset host url structure */}
           <img 
             src={`${API_BASE_URL}/${business.images[0]}`} 
             className="w-full h-full object-cover" 
@@ -126,10 +130,50 @@ const BusinessDetails = () => {
           </div>
 
           {business.description && <p className="text-gray-600 mb-6">{business.description}</p>}
+
+          {/* 🚀 CONDITIONAL RESTAURANT DROP DOWN MENU COMPONENT BLOCK */}
+          {business.category === 'Restaurants' && (
+            <div className="mb-8 bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="w-full flex items-center justify-between px-6 py-4 bg-gray-50 hover:bg-gray-100/80 transition-colors border-b border-gray-100 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                    <Utensils size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">View Food Menu</h3>
+                    <p className="text-xs text-gray-400 font-medium">Explore dishes and prices for this establishment.</p>
+                  </div>
+                </div>
+                {menuOpen ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+              </button>
+
+              {menuOpen && (
+                <div className="p-6 divide-y divide-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {business.menu && business.menu.length > 0 ? (
+                    business.menu.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-3.5 first:pt-0 last:pb-0">
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-base">{item.name}</h4>
+                        </div>
+                        <span className="text-sm font-extrabold text-[#007185] bg-teal-50 px-3 py-1 rounded-lg border border-teal-100">
+                          {item.price}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-sm text-gray-400 py-4 italic">No menu items added yet by this restaurant.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           
           <div className="grid grid-cols-2 gap-4 mb-10">
             {business.images.slice(1).map((img, i) => (
-              /* 🟢 FIXED: Swapped out asset gallery dynamic link mapping endpoints */
               <img 
                 key={i} 
                 src={`${API_BASE_URL}/${img}`} 

@@ -12,6 +12,9 @@ interface SignUpFormProps {
   redirectToParam: string | null;
 }
 
+// 🚀 Globally set the dynamic environment variable fallback link to handle cross-device routes
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 // Helper to determine if there is an OAuth error directly from the URL query params
 function getOAuthErrorMessage(errorQuery: string | null): string | null {
   if (errorQuery === 'oauth_failed') {
@@ -55,16 +58,14 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
     }));
   };
 
-  console.log(process.env.NEXT_PUBLIC_API_URL); // Debugging line to verify environment variable is loaded correctly
+  console.log(API_BASE_URL); // Debugging line to verify active environment variable pathing context
 
- const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      // 🟢 Uses the environment variable if defined, otherwise falls back to localhost
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const response = await axios.post(`${API_BASE_URL}/auth/signup`, formData);
       
       if (response.data.success) {
@@ -86,11 +87,11 @@ function SignUpFormContent({ errorParam, redirectToParam }: SignUpFormProps) {
   const handleGoogleLogin = (): void => {
     const target = redirectToParam;
     
+    // 🚀 FIXED: Replaced hardcoded localhost endpoints with dynamic API_BASE_URL configuration matrix parameters
     if (target) {
-      // Forward the return target directly to your updated backend route
-      window.location.href = `http://localhost:4000/auth/google?redirectTo=${encodeURIComponent(target)}`;
+      window.location.href = `${API_BASE_URL}/auth/google?redirectTo=${encodeURIComponent(target)}`;
     } else {
-      window.location.href = 'http://localhost:4000/auth/google';
+      window.location.href = `${API_BASE_URL}/auth/google`;
     }
   };
 

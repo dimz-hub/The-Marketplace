@@ -3,8 +3,13 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { ImagePlus, X } from 'lucide-react'; 
+import { ImagePlus, X, Plus, Trash2 } from 'lucide-react'; 
 import FieldsetGroup from './Fieldset';
+
+interface MenuItem {
+  name: string;
+  price: string;
+}
 
 interface FormData {
   name: string;
@@ -16,6 +21,7 @@ interface FormData {
   closeTime: string;
   description: string;
   websiteLink: string; 
+  menu: MenuItem[]; // 🚀 Added menu array field structure
 }
 
 interface BackendErrorResponse {
@@ -23,20 +29,10 @@ interface BackendErrorResponse {
   error?: string;
 }
 
-interface RegistrationResponse {
-  success?: boolean;
-  message?: string;
-  data?: {
-    _id?: string;
-    id?: string;
-  };
-}
-
 interface BusinessRegistrationProps {
   editId?: string | null;
 }
 
-// 🟢 Setup the dynamic environment variable fallback link
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) => {
@@ -45,7 +41,8 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
   const [formData, setFormData] = useState<FormData>({
     name: '', email: '', phoneNumber: '', category: '',
     location: '', openTime: '', closeTime: '', description: '',
-    websiteLink: '' 
+    websiteLink: '',
+    menu: [] // 🚀 Initialized as empty array
   });
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -56,13 +53,12 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
 
   const categories: string[] = ['Restaurants', 'Fashion', 'Dry Food', 'Logistics', 'Home Services'];
 
-  // Fetch existing data if we are in edit mode
+  // Fetch existing data if editing
   useEffect(() => {
     const fetchExistingBusiness = async () => {
       if (!editId) return;
       try {
         setLoading(true);
-        // 🟢 FIXED: Replaced localhost with dynamic API_BASE_URL string interpolation
         const response = await axios.get(`${API_BASE_URL}/business/${editId}`);
         if (response.data.success && response.data.data) {
           const b = response.data.data;
@@ -75,13 +71,13 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
             openTime: b.openTime || '',
             closeTime: b.closeTime || '',
             description: b.description || '',
-            websiteLink: b.websiteLink || '' 
+            websiteLink: b.websiteLink || '',
+            menu: b.menu || [] // 🚀 Populate menu items array when modifying profile records
           });
           
           setDeletedImages([]);
 
           if (b.images && b.images.length > 0) {
-            // 🟢 FIXED: Replaced asset host mapping logic with API_BASE_URL
             setPreviews(b.images.map((img: string) => `${API_BASE_URL}/${img}`));
           }
         }
@@ -101,6 +97,29 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // 🚀 Dynamic Menu Mutation State Handlers
+  const addMenuItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      menu: [...prev.menu, { name: '', price: '' }]
+    }));
+  };
+
+  const removeMenuItem = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      menu: prev.menu.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleMenuChange = (index: number, field: keyof MenuItem, value: string) => {
+    setFormData((prev) => {
+      const updatedMenu = [...prev.menu];
+      updatedMenu[index] = { ...updatedMenu[index], [field]: value };
+      return { ...prev, menu: updatedMenu };
+    });
+  };
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
@@ -113,7 +132,6 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
   const removeImage = (index: number) => {
     const imageToRemove = previews[index];
 
-    // 🟢 FIXED: Replaced hardcoded checks so image removal matches your cloud/production host string context
     if (imageToRemove.startsWith(`${API_BASE_URL}/`)) {
       const rawPath = imageToRemove.replace(`${API_BASE_URL}/`, '');
       setDeletedImages((prev) => [...prev, rawPath]);
@@ -143,8 +161,14 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
 
     const data = new window.FormData();
     
+    // Append standard tracking data keys
     Object.entries(formData).forEach(([key, value]) => {
-      data.append(key, value);
+      if (key === 'menu') {
+        // 🚀 CRITICAL: Serialise menu arrays into JSON strings since FormData only handles strings/blobs natively
+        data.append(key, JSON.stringify(value));
+      } else {
+        data.append(key, value as string);
+      }
     });
 
     selectedFiles.forEach((file) => {
@@ -156,7 +180,6 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
     }
 
     try {
-      // 🟢 FIXED: Replaces creation and modification endpoints with API_BASE_URL variables
       const url = editId 
         ? `${API_BASE_URL}/business/update/${editId}` 
         : `${API_BASE_URL}/business/register`;
@@ -180,7 +203,7 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
           setFormData({
             name: '', email: '', phoneNumber: '', category: '',
             location: '', openTime: '', closeTime: '', description: '',
-            websiteLink: '' 
+            websiteLink: '', menu: []
           });
           setSelectedFiles([]);
           setPreviews([]);
@@ -249,6 +272,67 @@ const BusinessRegistration: React.FC<BusinessRegistrationProps> = ({ editId }) =
             ))}
           </select>
         </FieldsetGroup>
+
+        {/* 🚀 DYNAMIC RESTAURANT MENU INPUT GENERATION FIELD BLOCK */}
+        {formData.category === 'Restaurants' && (
+          <div className="p-5 border border-dashed border-gray-200 bg-slate-50/50 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">Restaurant Dishes & Menu</h3>
+                <p className="text-[11px] text-slate-400 font-medium">Add signature dishes or items served at your eatery layout context.</p>
+              </div>
+              <button
+                type="button"
+                onClick={addMenuItem}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#007185] hover:bg-[#005f70] text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+              >
+                <Plus size={14} /> Add Item
+              </button>
+            </div>
+
+            {formData.menu.length === 0 ? (
+              <p className="text-center text-xs text-slate-400 py-4 italic">No items listed yet. Click add item to populate your menu matrix list.</p>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {formData.menu.map((item, index) => (
+                  <div key={index} className="flex gap-2 items-center animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex-1">
+                      <FieldsetGroup label="Dish Title">
+                        <input 
+                          type="text" 
+                          value={item.name}
+                          onChange={(e) => handleMenuChange(index, 'name', e.target.value)}
+                          placeholder="e.g. Grilled Chicken Breast"
+                          className="w-full text-sm outline-none bg-transparent"
+                          required
+                        />
+                      </FieldsetGroup>
+                    </div>
+                    <div className="w-32">
+                      <FieldsetGroup label="Price">
+                        <input 
+                          type="text" 
+                          value={item.price}
+                          onChange={(e) => handleMenuChange(index, 'price', e.target.value)}
+                          placeholder="e.g. ₦4,500 or $12.99"
+                          className="w-full text-sm outline-none bg-transparent"
+                          required
+                        />
+                      </FieldsetGroup>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeMenuItem(index)}
+                      className="p-2.5 bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors border border-red-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <FieldsetGroup label="Location">
           <input type="text" name="location" className="w-full outline-none bg-transparent"

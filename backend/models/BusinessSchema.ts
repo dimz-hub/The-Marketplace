@@ -9,6 +9,12 @@ export interface IReview {
   createdAt: Date;
 }
 
+// 🚀 Interface for individual menu entries
+export interface IMenuItem {
+  name: string;
+  price: string;
+}
+
 // 2. Interface for TypeScript Business Document
 export interface IBusiness extends Document {
   id: string; 
@@ -26,6 +32,7 @@ export interface IBusiness extends Document {
   reviews: IReview[];   // 🚀 Added sub-document layout reference array
   rating: number;       // 🚀 Enforced number type to match aggregate calculation scripts
   reviewCount: number;  // 🚀 Tracks overall numeric counts
+  menu?: IMenuItem[];   // 🚀 Added dynamic restaurant menu interface reference
   tags?: string[];      // 保留 Optional user tags array parameter
   createdAt: Date;
 }
@@ -64,6 +71,13 @@ const BusinessSchema: Schema<IBusiness> = new Schema({
       rating: { type: Number, required: true, min: 1, max: 5 },
       comment: { type: String, required: true },
       createdAt: { type: Date, default: Date.now }
+    }
+  ],
+  // 🚀 Integrated dynamic Restaurant Menu matrix data sub-array layout
+  menu: [
+    {
+      name: { type: String, required: true, trim: true },
+      price: { type: String, required: true, trim: true }
     }
   ],
   rating: { type: Number, default: 0 },       // Defaulted to 0 for initial registration

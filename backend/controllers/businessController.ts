@@ -7,7 +7,7 @@ interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
-    name?: string; // 🚀 Updated to include optional name payload passed from token middleware
+    name?: string; 
   };
 }
 
@@ -37,12 +37,12 @@ interface AddBusinessBody {
   closeTime: string;
   description?: string;
   websiteLink?: string;
-  [key: string]: any; // Allow indexing string keys for the allowedFields loop
+  menu?: string; // 🚀 Declared incoming menu schema string from multi-part upload tracking
+  [key: string]: any; 
 }
 
 // --- CONTROLLERS ---
 
-// Real-Time Auto-complete Suggestions Controller
 export const getSearchSuggestions = async (
   req: Request, 
   res: Response
@@ -76,7 +76,6 @@ export const getSearchSuggestions = async (
   }
 };
 
-// Search Businesses Controller
 export const searchBusinesses = async (
   req: Request, 
   res: Response
@@ -143,7 +142,8 @@ export const addBusiness = async (
       openTime,
       closeTime,
       description,
-      websiteLink
+      websiteLink,
+      menu // 🚀 Incoming dynamic menu data string sequence from form parser payload
     } = authReq.body as AddBusinessBody;
 
     if (!authReq.user || !authReq.user.id) {
@@ -160,6 +160,16 @@ export const addBusiness = async (
       });
     }
 
+    // 🚀 Handle conversion fallback array safely parsing JSON strings
+    let parsedMenu = [];
+    if (category === 'Restaurants' && menu) {
+      try {
+        parsedMenu = typeof menu === 'string' ? JSON.parse(menu) : menu;
+      } catch (err) {
+        console.error("Menu parse operation failure during registration workflow logic mappings:", err);
+      }
+    }
+
     const newBusiness = new Business({
       userId: authReq.user.id, 
       name,
@@ -171,7 +181,8 @@ export const addBusiness = async (
       closeTime,
       description,
       websiteLink: websiteLink || "", 
-      images: imagePaths
+      images: imagePaths,
+      menu: parsedMenu // 🚀 Save safe structured menu data parameters to DB model
     });
 
     const savedBusiness = await newBusiness.save();
@@ -211,7 +222,7 @@ export const getBusinessById = async (
   }
 };
 
-// Update Business Controller (🚀 Integrated Loop Modification Strategy)
+// Update Business Controller
 export const updateBusiness = async (
   req: Request,
   res: Response
@@ -221,7 +232,6 @@ export const updateBusiness = async (
     const { id } = req.params;
     const updateFields = { ...authReq.body };
 
-    // 1. Authorization Guard Checks
     if (!authReq.user || !authReq.user.id) {
       return res.status(401).json({ 
         success: false, 
@@ -229,13 +239,11 @@ export const updateBusiness = async (
       });
     }
 
-    // 2. Document Extraction & Integrity Fallbacks
     let business = await Business.findById(id); 
     if (!business) {
       return res.status(404).json({ success: false, message: 'Business workspace not found.' });
     }
 
-    // 3. User Ownership Permission Verification Guard
     if (business.userId !== authReq.user.id) {
       return res.status(403).json({ 
         success: false, 
@@ -243,14 +251,12 @@ export const updateBusiness = async (
       });
     }
 
-    // 4. Process Fresh Uploaded Images Sequence
     const files = authReq.files as Express.Multer.File[];
     if (files && files.length > 0) {
       const newImages = files.map((file) => file.path);
       business.images = [...business.images, ...newImages];
     }
 
-    // 5. Handle Image Deletions Ledger Logs Request Array
     if (authReq.body.deletedImages) {
       try {
         const deleted: string[] = JSON.parse(authReq.body.deletedImages);
@@ -260,7 +266,6 @@ export const updateBusiness = async (
       }
     }
 
-    // 6. Assign Direct Schema Tracking Fields Safely via Loop Strategy
     const allowedFields: Array<keyof AddBusinessBody> = [
       'name', 'email', 'phoneNumber', 'category', 'location', 
       'openTime', 'closeTime', 'description', 'websiteLink'
@@ -268,12 +273,24 @@ export const updateBusiness = async (
 
     allowedFields.forEach((field) => {
       if (updateFields[field] !== undefined) {
-        // cast to any to circumvent tight type checking while mutating document records dynamically
         (business as any)[field] = updateFields[field];
       }
     });
 
-    // 7. Save document changes triggering schema pre-hooks & validations smoothly
+    // 🚀 Handle conversion payload inside patch/update routines context updates cleanly
+    if (updateFields.category === 'Restaurants' && updateFields.menu) {
+      try {
+        (business as any).menu = typeof updateFields.menu === 'string' 
+          ? JSON.parse(updateFields.menu) 
+          : updateFields.menu;
+      } catch (e) {
+        console.error("Failed handling incoming modifications menu strings payload array structures parsing parsing logs", e);
+      }
+    } else if (updateFields.category !== 'Restaurants') {
+      // Clear menu if category is changed away from Restaurants
+      (business as any).menu = [];
+    }
+
     const updatedBusiness = await business.save();
 
     return res.status(200).json({
@@ -294,7 +311,6 @@ export const addBusinessReview = async (req: Request, res: Response): Promise<vo
   try {
     const authReq = req as AuthenticatedRequest;
     const { id } = req.params;
-    // 🚀 Added userName extraction fallback from incoming body data mapping
     const { rating, comment, userName } = req.body; 
 
     if (!authReq.user || !authReq.user.id) {
@@ -310,8 +326,6 @@ export const addBusinessReview = async (req: Request, res: Response): Promise<vo
       return res.status(404).json({ success: false, message: 'Business workspace entity not found.' });
     }
 
-    // 🚀 RESOLUTION LAYER: Prioritize token auth name string parameter. 
-    // If undefined, grab the manually dispatched client-decoded payload option before defaulting out.
     const resolvedReviewerName = authReq.user.name || userName || "Anonymous Reviewer";
 
     const newReview = {
@@ -322,11 +336,9 @@ export const addBusinessReview = async (req: Request, res: Response): Promise<vo
       createdAt: new Date()
     };
 
-    // Push review into schema array
     business.reviews.push(newReview);
     business.reviewCount = business.reviews.length;
     
-    // Calculate running average rating score sequence
     const totalRatingSum = business.reviews.reduce((sum, item) => sum + item.rating, 0);
     business.rating = Math.round((totalRatingSum / business.reviewCount) * 10) / 10;
 
