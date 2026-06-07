@@ -4,8 +4,8 @@ import { Request } from 'express';
 // Import your MongoDB/Mongoose User Model here
 // import User from '../models/User'; 
 
-// 🚀 FIXED: Dynamic callback determination based on environment context
-const BACKEND_BASE_URL = process.env.API_BASE_URL || 'http://localhost:4000';
+// 🚀 FIXED: Dynamic callback determination handles both standard naming fallbacks
+const BACKEND_BASE_URL = process.env.API_BASE_URL || process.env.BACKEND_BASE_URL || 'http://localhost:4000';
 
 passport.use(
   new GoogleStrategy(
@@ -15,6 +15,7 @@ passport.use(
       // Uses the dynamic environment variable instead of hardcoded localhost
       callbackURL: `${BACKEND_BASE_URL}/auth/google/callback`,
       passReqToCallback: true,
+      proxy: true, // 🚀 CRITICAL FIX: Forces Passport to use HTTPS behind Render's reverse proxy load balancers
     },
     async (req: Request, accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback) => {
       try {
@@ -50,7 +51,7 @@ passport.use(
         return done(error as Error, undefined);
       }
     }
-  ) // 🚀 FIXED HERE: Added the closing parenthesis for the GoogleStrategy constructor
+  ) // 🚀 FIXED HERE: Closing parenthesis for the GoogleStrategy constructor
 );
 
 export default passport;

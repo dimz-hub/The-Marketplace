@@ -12,6 +12,8 @@ dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Hardcoded explicit trusted origins list (Trailing slashes removed for crisp matching)
 const allowedOrigins = [
   'http://localhost:3000', 
