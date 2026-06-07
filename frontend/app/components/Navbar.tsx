@@ -18,7 +18,6 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   
   const [isMoreOpen, setIsMoreOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
-  // 🟢 State to manage the mobile slide-out menu drawer
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   
   const moreMenuRef = useRef<HTMLDivElement>(null);
@@ -58,7 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
   const handleCategoryClick = (category: string) => {
     setActiveLink(category);
     setIsMoreOpen(false);
-    setIsMobileMenuOpen(false); // 🟢 Close drawer on click
+    setIsMobileMenuOpen(false); // 🚀 Forces mobile drawer to close immediately upon select
     router.push(`/search?find_desc=${encodeURIComponent(category)}`);
   };
 
@@ -172,7 +171,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
           )}
         </div>
 
-        {/* 🟢 Mobile Menu Trigger Button (Hamburger Icon) */}
+        {/* Mobile Menu Trigger Button */}
         <div className="md:hidden flex items-center">
           <button 
             onClick={() => setIsMobileMenuOpen(true)}
@@ -184,7 +183,6 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
       </div>
 
       {/* --- MOBILE DRAWER SLIDE OUT --- */}
-      {/* Background Dim Backdrop */}
       <div 
         className={`fixed inset-0 bg-black/50 z-50 transition-opacity duration-300 md:hidden ${
           isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -192,7 +190,6 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
         onClick={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* Drawer content layout */}
       <aside className={`fixed top-0 right-0 h-full w-[280px] bg-white z-50 shadow-2xl transform transition-transform duration-300 ease-in-out p-6 md:hidden text-gray-900 ${
         isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
@@ -204,7 +201,6 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
         </div>
 
         <div className="flex flex-col gap-6">
-          {/* Marketplace Features */}
           <Link href="/business" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 font-bold text-gray-800 hover:text-red-600 py-1 transition-colors">
             <Briefcase size={20} className="text-gray-500" /> Marketplace for Business
           </Link>
@@ -219,7 +215,8 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Categories</p>
             <div className="flex flex-col gap-4 pl-1">
-              {['Restaurants', 'Home Services', 'Fashion', 'Dry Foods', 'Logistics'].map((link) => (
+              {/* 🚀 STANDARDIZED: 'Dry Food' is singular to match search metrics */}
+              {['Restaurants', 'Home Services', 'Fashion', 'Dry Food', 'Logistics'].map((link) => (
                 <button
                   key={link}
                   onClick={() => handleCategoryClick(link)}
@@ -227,7 +224,7 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
                     activeLink === link ? 'text-[#d32323]' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  {link}
+                  {link === 'Dry Food' ? 'Dry Food' : link}
                 </button>
               ))}
             </div>
@@ -279,12 +276,12 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
           <button
             onClick={() => setIsMoreOpen(!isMoreOpen)}
             className={`text-sm font-medium h-full flex items-center border-b-2 transition-all gap-1 ${
-              activeLink === 'Dry Foods' || activeLink === 'Logistics' || activeLink === 'More'
+              activeLink === 'Dry Food' || activeLink === 'Logistics' || activeLink === 'More'
                 ? 'border-[#d32323] text-[#d32323]' 
                 : `border-transparent ${categoryTextColorClass}`
             }`}
           >
-            {activeLink === 'Dry Foods' || activeLink === 'Logistics' ? activeLink : 'More'}
+            {activeLink === 'Dry Food' || activeLink === 'Logistics' ? activeLink : 'More'}
             <ChevronDown size={14} className={`transition-transform duration-200 ${isMoreOpen ? 'rotate-180' : ''}`} />
           </button>
 
@@ -292,10 +289,10 @@ const Navbar: React.FC<NavbarProps> = ({ color }) => {
           {isMoreOpen && (
             <div className="absolute top-full left-0 w-44 bg-white border border-gray-200 shadow-xl rounded-lg py-1 mt-1 z-50 text-gray-900">
               <button
-                onClick={() => handleCategoryClick('Dry Food')} // 🚀 FIXED: Added the 's' to match state criteria
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${activeLink === 'Dry Foods' ? 'text-[#d32323] font-bold bg-red-50/50' : 'text-gray-700'}`}
+                onClick={() => handleCategoryClick('Dry Food')} // 🚀 STANDARDIZED: Matches exactly with mobile payload data string
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${activeLink === 'Dry Food' ? 'text-[#d32323] font-bold bg-red-50/50' : 'text-gray-700'}`}
               >
-                Dry Foods
+                Dry Food
               </button>
               <button
                 onClick={() => handleCategoryClick('Logistics')}

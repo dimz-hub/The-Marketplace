@@ -4,18 +4,15 @@ import { Request } from 'express';
 // Import your MongoDB/Mongoose User Model here
 // import User from '../models/User'; 
 
-// 🚀 FIXED: Dynamic callback determination handles both standard naming fallbacks
-const BACKEND_BASE_URL = process.env.API_BASE_URL || process.env.BACKEND_BASE_URL || 'http://localhost:4000';
-
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      // Uses the dynamic environment variable instead of hardcoded localhost
-      callbackURL: `${BACKEND_BASE_URL}/auth/google/callback`,
+      // 🚀 FIXED: Hardcoded absolute URL completely eliminates 'redirect_uri_mismatch' errors on production
+      callbackURL: 'https://the-marketplace-zjjl.onrender.com/auth/google/callback',
       passReqToCallback: true,
-      proxy: true, // 🚀 CRITICAL FIX: Forces Passport to use HTTPS behind Render's reverse proxy load balancers
+      proxy: true, // 🚀 CRITICAL FIX: Forces Passport to preserve HTTPS headers behind Render's reverse proxies
     },
     async (req: Request, accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback) => {
       try {
@@ -51,7 +48,7 @@ passport.use(
         return done(error as Error, undefined);
       }
     }
-  ) // 🚀 FIXED HERE: Closing parenthesis for the GoogleStrategy constructor
+  ) // Closing parenthesis for the GoogleStrategy constructor
 );
 
 export default passport;
