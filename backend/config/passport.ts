@@ -1,6 +1,6 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile, VerifyCallback } from 'passport-google-oauth20';
-import { Request } from 'express';
+
 // Import your MongoDB/Mongoose User Model here
 // import User from '../models/User'; 
 
@@ -11,10 +11,9 @@ passport.use(
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       // 🚀 FIXED: Hardcoded absolute URL completely eliminates 'redirect_uri_mismatch' errors on production
       callbackURL: 'https://the-marketplace-zjjl.onrender.com/auth/google/callback',
-      passReqToCallback: true,
       proxy: true, // 🚀 CRITICAL FIX: Forces Passport to preserve HTTPS headers behind Render's reverse proxies
     },
-    async (req: Request, accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback) => {
+    async (accessToken: string, refreshToken: string, profile: Profile, done: VerifyCallback) => {
       try {
         const email = profile.emails?.[0]?.value;
         if (!email) {
@@ -36,7 +35,7 @@ passport.use(
         //   });
         // }
 
-        // For now, passing a mock user structure matching your frontend needs
+        // Passing a mock user structure matching your frontend needs
         const mockUser = {
           id: profile.id,
           email: email,
@@ -48,7 +47,7 @@ passport.use(
         return done(error as Error, undefined);
       }
     }
-  ) // 🚀 FIXED: Added the missing closing parenthesis for the new GoogleStrategy instantiation wrapper
+  )
 );
 
 export default passport;
