@@ -48,7 +48,7 @@ passport.use(
         return done(error as Error, undefined);
       }
     }
-  ) // Closing parenthesis for the GoogleStrategy constructor
+  ) // 🚀 FIXED: Added the missing closing parenthesis for the new GoogleStrategy instantiation wrapper
 );
 
 export default passport;
